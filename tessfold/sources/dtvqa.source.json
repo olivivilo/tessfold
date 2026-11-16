@@ -1,0 +1,89 @@
+{
+  "revision": "3dc6eed4a205cbb9e0203d7c2f0e39fb47fd63ab",
+  "files": [
+    {
+      "type": "file",
+      "oid": "4a73856e784af252538c0a7c83d98939d1d2941e",
+      "size": 7415004021,
+      "lfs": {
+        "oid": "97196bbbc5a0e8c407218cd241b3cbf2e4aba7a7a549d380b2ff5d3e78abe647",
+        "size": 7415004021,
+        "pointerSize": 135
+      },
+      "xetHash": "35e9b9b468a7cb8f18ee0d28d7ce74e67e0dd7160b482acbe93c6c86bc3a16da",
+      "path": "image.zip"
+    },
+    {
+      "type": "file",
+      "oid": "62d81f43ae38f9537dbfc73e7cb2f38c9bbc18d0",
+      "size": 91520,
+      "path": "test/DTNutrCap.json"
+    },
+    {
+      "type": "file",
+      "oid": "03df83ce99198f69c8d4ef338508ca7d54b3a626",
+      "size": 94607,
+      "path": "test/DTProdCap.json"
+    },
+    {
+      "type": "file",
+      "oid": "0744b89e0bdbc6b16241f62a659f62e06d02a71e",
+      "size": 83127,
+      "path": "test/DTScene.json"
+    },
+    {
+      "type": "file",
+      "oid": "3fd75a33a761adb9975af4f92a45d7060f98567c",
+      "size": 85538,
+      "path": "test/DTTabShot.json"
+    },
+    {
+      "type": "file",
+      "oid": "15999627e0218b3c7ae8e34a212bfed6c284dcb1",
+      "size": 2422538,
+      "path": "train/DTNutrCap_train_val.json"
+    },
+    {
+      "type": "file",
+      "oid": "25fcce6a482260a4d946fc7c7f97698fd06e42ce",
+      "size": 1251062,
+      "path": "train/DTProdCap_train_val.json"
+    },
+    {
+      "type": "file",
+      "oid": "a98f43888ee2328a4cd663ed019dfc2d4c9e4960",
+      "size": 9410144,
+      "path": "train/DTScene_train.json"
+    },
+    {
+      "type": "file",
+      "oid": "363034017728aa0bee55cf298f6a865dca439dbf",
+      "size": 10049843,
+      "path": "train/DTScene_train_gpt-4v.json"
+    },
+    {
+      "type": "file",
+      "oid": "2f057b7a5fbe24939ef0bc0fd7c07bb97e668d51",
+      "size": 1996266,
+      "path": "train/DTScene_val.json"
+    },
+    {
+      "type": "file",
+      "oid": "1d053e83259ceba83811754ee7c378e20eb617db",
+      "size": 14841492,
+      "lfs": {
+        "oid": "3feb324c79c8cb30e10879ae89d47fddf613a76a33ae307479e660ee4ba1a6e8",
+        "size": 14841492,
+        "pointerSize": 133
+      },
+      "xetHash": "de88f589ab01412166e005f7afa569c3e05e52d5763da65601064ecbaba5c687",
+      "path": "train/DTTabShot_train.json"
+    },
+    {
+      "type": "file",
+      "oid": "e03bb497af4a11a9df5f21b4b429f9ebca8a950e",
+      "size": 1136658,
+      "path": "train/DTTabShot_val.json"
+    }
+  ]
+}

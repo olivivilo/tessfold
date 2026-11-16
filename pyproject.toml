@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tessfold-reproduction"
+version = "0.1.0"
+description = "Frozen-backbone spatial visual token compression for document VQA"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "torch==2.8.0", "torchvision==0.23.0",
+  "transformers==4.57.1", "tokenizers==0.22.2",
+  "accelerate==1.11.0", "qwen-vl-utils==0.0.14",
+  "numpy==2.2.6", "einops>=0.8,<0.9", "Pillow>=10.4,<13",
+  "safetensors>=0.6,<1", "huggingface-hub>=0.36,<1",
+  "due-evaluator @ git+https://github.com/due-benchmark/evaluator.git@75c0f550f5b7c0104a86993d5f307794687493ac"
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<9"]
+analysis = ["scipy>=1.14,<2", "matplotlib>=3.9,<4"]
+
+[project.scripts]
+tessfold = "tessfold.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["tessfold*", "vqa*", "scripts*"]
+
+[tool.setuptools.package-data]
+tessfold = ["sources/*.json"]
+vqa = ["*.cpp"]
+scripts = ["*.sh"]
+"scripts.tessfold_accel" = ["*.sh"]
+"scripts.tessfold_repair" = ["*.sh"]
+"scripts.tessfold_budget1075" = ["*.sh"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

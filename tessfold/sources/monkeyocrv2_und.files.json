@@ -1,0 +1,110 @@
+[
+  {
+    "Name": "README.md",
+    "Size": 50531,
+    "Revision": "ffecaec26796dcd0e4d6c8bbae216d0848a50fa2",
+    "Sha256": "7d93cac96a7ff47ef65d313ef633931244c1e8c5ed5b778516efaa9bf9ac1ce9"
+  },
+  {
+    "Name": "added_tokens.json",
+    "Size": 707,
+    "Revision": "5c6ed44fa245e1d78bab416fb209820ea3715f1f",
+    "Sha256": "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680"
+  },
+  {
+    "Name": "args.json",
+    "Size": 19975,
+    "Revision": "e61f6eb83e98eceb5f4dfaedf300424997023c51",
+    "Sha256": "d8ebfa477acc44c5dd90edaf09ee2fe4e0700dab8521cb8eb601f0a708c7b956"
+  },
+  {
+    "Name": "chat_template.jinja",
+    "Size": 5292,
+    "Revision": "505ea5c6ff4ca3ad5b3c685c00370ebbb29551bd",
+    "Sha256": "3636d0f0bd6bef02654cdffdc447b79cb2cef8ab02cc75267345946291a489e4"
+  },
+  {
+    "Name": "config.json",
+    "Size": 2173,
+    "Revision": "59856a1e16c5a95c9b222402a88e0246c4d8775e",
+    "Sha256": "e96dd4fcfead09eaa6fbacb190596dfe4bba9d1a1eb5c5ab4d1061b7a1506a8c"
+  },
+  {
+    "Name": "configuration.json",
+    "Size": 55,
+    "Revision": "18ec50f3586da8f2ea5ba88c7e477950c4545c0d",
+    "Sha256": "26726b583ef39126b03b84fffd5011c2544c50d236a16472f6575373b17f3986"
+  },
+  {
+    "Name": "configuration_monkeyocrv2.py",
+    "Size": 9860,
+    "Revision": "45a8018fc9aa2e291e029ece67dc781bd306f0e3",
+    "Sha256": "97f7d75111064596c8603285223a97da49f1ef7abc0f5ce0a583a7a2ce2d78f6"
+  },
+  {
+    "Name": "generation_config.json",
+    "Size": 214,
+    "Revision": "46a37e7fc96497757a055ce4856e3cb2b18f0edf",
+    "Sha256": "d3e057bbca66b92f33a8bdc6a1301014e0e4ab69b3b3fd2e442d9fe0c69f3431"
+  },
+  {
+    "Name": "merges.txt",
+    "Size": 1671853,
+    "Revision": "38bf39ab8a36233513b2431f1e52560b55a94601",
+    "Sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+  },
+  {
+    "Name": "model.safetensors",
+    "Size": 4295297328,
+    "Revision": "6549df8772503936ebae438bd051900a4c1e5b89",
+    "Sha256": "5daa4da333391fdb936bb2bcfa00cd43bed964e884378b4716a21c044f416891"
+  },
+  {
+    "Name": "modeling_monkeyocrv2.py",
+    "Size": 5525,
+    "Revision": "e662d8e4971714e7eb2c1e5d5ff169734f3866a0",
+    "Sha256": "d805cf4291e917ea4ab5bc5c51ca812b3287dc96cf94e89d052b6a8a895c4bdd"
+  },
+  {
+    "Name": "modeling_monkeyocrv2_vision.py",
+    "Size": 19909,
+    "Revision": "452b310a75306b136033a8808180e5f2ea3a013c",
+    "Sha256": "340badf4d4bc2516756839d61f240c0e53f06a5e1ce62c831680e80a0191c5d2"
+  },
+  {
+    "Name": "preprocessor_config.json",
+    "Size": 449,
+    "Revision": "215096d8d810c6fd1746c639c60af2748ba0ded7",
+    "Sha256": "1beeee7ca6fb814296224d57de413990c5488c277aea43bf0ca16f110fa38a64"
+  },
+  {
+    "Name": "processor_config.json",
+    "Size": 139,
+    "Revision": "f834e9130fe9aaff92f6b045e21282b283901bbc",
+    "Sha256": "246cfb3914c6c277e29686a02583e9895d6b993d0c2c51adc175b0819bd70d57"
+  },
+  {
+    "Name": "special_tokens_map.json",
+    "Size": 613,
+    "Revision": "4d53b24bcc7dddb4cb789a8b1038b701a94bec0f",
+    "Sha256": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd"
+  },
+  {
+    "Name": "tokenizer.json",
+    "Size": 11422654,
+    "Revision": "ceaa6d7b088d5b50db6df331ae6d9ca54a55fbce",
+    "Sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+  },
+  {
+    "Name": "tokenizer_config.json",
+    "Size": 5540,
+    "Revision": "e434ba8764e71d48bb74e5a438436f66b70cfb24",
+    "Sha256": "aa854f394b95a30114bb1f45632175426d75683b0fc27437f4daebeeb81dd020"
+  },
+  {
+    "Name": "vocab.json",
+    "Size": 2776833,
+    "Revision": "2f89da44f29e695159497d663fc979b7a986025f",
+    "Sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+  }
+]

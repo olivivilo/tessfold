@@ -1,0 +1,626 @@
+[
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00000-of-00012.parquet",
+    "size": 616602754,
+    "lfs": {
+      "oid": "37bde9b3f93add0cf47c980897eee7971cbf6b661b632a168359e35ff3c136f4",
+      "size": 616602754,
+      "pointerSize": 134
+    },
+    "oid": "8b94f3cfbe5da64cbab5aab39b2e0591d07e7234"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00001-of-00012.parquet",
+    "size": 94630890,
+    "lfs": {
+      "oid": "99b528d5a28d3496eb198e21ef10377d4fc94dcc0c5d4e9de03f816074933414",
+      "size": 94630890,
+      "pointerSize": 133
+    },
+    "oid": "99a28ea430ededd287dbb8441bb353cfb632a9ca"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00002-of-00012.parquet",
+    "size": 93607033,
+    "lfs": {
+      "oid": "357128e27abad13d59f2ff1725005079078c3de5e8976bdd6c18d9300ef84441",
+      "size": 93607033,
+      "pointerSize": 133
+    },
+    "oid": "5d2ab90b39dc97d89b70348dd46aefd1e0b1f30f"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00003-of-00012.parquet",
+    "size": 327482106,
+    "lfs": {
+      "oid": "9f05b9bb30aa9467178d7505757cd7582d07cb44d421e31556f8d27334642e42",
+      "size": 327482106,
+      "pointerSize": 134
+    },
+    "oid": "0617e3f63c8197c2c60d6818bc60509a92dec4fc"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00004-of-00012.parquet",
+    "size": 798907355,
+    "lfs": {
+      "oid": "09af2ebb14b99e4fea2a80314a6ed98705c54dc39ddbe02daf15d41f50ebd733",
+      "size": 798907355,
+      "pointerSize": 134
+    },
+    "oid": "b89f110bcaa65f75408b265c902832fda8e2f021"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00005-of-00012.parquet",
+    "size": 1039426177,
+    "lfs": {
+      "oid": "0ba8fef50a814c9a50fb4b60b2547ae0484d995599b0f488565800e01ecb5282",
+      "size": 1039426177,
+      "pointerSize": 135
+    },
+    "oid": "a58de6126df86a74749e2f7af6068379795a915b"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00006-of-00012.parquet",
+    "size": 1010826516,
+    "lfs": {
+      "oid": "fdf114fe2552cedbd7fffa5a72e91c0fd494ab7e35d850c8b8c8e18d2a7f0e99",
+      "size": 1010826516,
+      "pointerSize": 135
+    },
+    "oid": "6c720cdbfaeec38218816ea1b519f52a47c53e01"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00007-of-00012.parquet",
+    "size": 1159424589,
+    "lfs": {
+      "oid": "72c7d97cb713070ee24a8b7588ac6c861ac36bd516d2e6abb892afac74bc7ada",
+      "size": 1159424589,
+      "pointerSize": 135
+    },
+    "oid": "429367f181b585ec6b739c363c2d5e9065307a38"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00008-of-00012.parquet",
+    "size": 417595455,
+    "lfs": {
+      "oid": "adabcb963a6e5fa219a2407401a5cf4765933ba748ee23517a0e58eb4f31e992",
+      "size": 417595455,
+      "pointerSize": 134
+    },
+    "oid": "cd3b818d68072d27071f08644d3808af4dea4cfe"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00009-of-00012.parquet",
+    "size": 730465380,
+    "lfs": {
+      "oid": "738a196376279e188264db1163e43dc4d21b1982e60a65d46d6ce7ac6a0765e2",
+      "size": 730465380,
+      "pointerSize": 134
+    },
+    "oid": "322f5eb470ef1393b001f3efa11d46ff881f8ab0"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00010-of-00012.parquet",
+    "size": 309937202,
+    "lfs": {
+      "oid": "66ce2781f362621ca0bf32e55ba39a384708c76331b31aaee67a3bae19c5927d",
+      "size": 309937202,
+      "pointerSize": 134
+    },
+    "oid": "45d57754c4c84b9ea1f5b7fb01e51045cb7dfde2"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/train-00011-of-00012.parquet",
+    "size": 793766611,
+    "lfs": {
+      "oid": "58c475ce1f8e49650ec56fb2ab5d8041ac0106fca954b775ca03c705d22cefe3",
+      "size": 793766611,
+      "pointerSize": 134
+    },
+    "oid": "93eff0644fffd5571ae450012c5eb72383016a44"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/validation-00000-of-00006.parquet",
+    "size": 114817746,
+    "lfs": {
+      "oid": "a31507f0b700ac64f3ead52057c5dc3ccfb0baadcc62bc0d19d17159f080a4d8",
+      "size": 114817746,
+      "pointerSize": 134
+    },
+    "oid": "eee0067a50a7d8c3601edc776fd0afd4d248e255"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/validation-00001-of-00006.parquet",
+    "size": 160435747,
+    "lfs": {
+      "oid": "ce63ba45f11bfb4e17362f9c073984b4c6c84a0e966ba3d33a86fa285a1fb3dc",
+      "size": 160435747,
+      "pointerSize": 134
+    },
+    "oid": "0c3b2cb763e5225a2c85bae94330a9573f07fb81"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/validation-00002-of-00006.parquet",
+    "size": 184452290,
+    "lfs": {
+      "oid": "2d580a39996ad05226ad462f2d31bad0df02f0f47f46263d96ad8df584a5667b",
+      "size": 184452290,
+      "pointerSize": 134
+    },
+    "oid": "cc84ce06087bdfce934f870560fa8a00c18c103c"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/validation-00003-of-00006.parquet",
+    "size": 177861893,
+    "lfs": {
+      "oid": "588a587567d1548a174b83b160132d97eb2b12a7d57374675d3c45b431403354",
+      "size": 177861893,
+      "pointerSize": 134
+    },
+    "oid": "fcfa17b3c6bae800440c2723a3242c7825e27ac4"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/validation-00004-of-00006.parquet",
+    "size": 206232388,
+    "lfs": {
+      "oid": "b43b8aa3e28a1b0f8728243fdf776b798a684b5baafb27d6a734edbbe3983302",
+      "size": 206232388,
+      "pointerSize": 134
+    },
+    "oid": "b5041050cb04531fcc3e7a184b9447fde425ec3d"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "DocVQA/validation-00005-of-00006.parquet",
+    "size": 212034964,
+    "lfs": {
+      "oid": "5bba6d5f7b8e6ee0b64df2e4c2885f93cd759c732998e4d6f9b86ce4c690fcf2",
+      "size": 212034964,
+      "pointerSize": 134
+    },
+    "oid": "4349a0eb6ff449dce03d781872853323445b3ac7"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00000-of-00024.parquet",
+    "size": 78923135,
+    "lfs": {
+      "oid": "11bdf0477b3f6b4f8e6369225769d68b1ed31fb4be2cdffdca510a2797533cd0",
+      "size": 78923135,
+      "pointerSize": 133
+    },
+    "oid": "24096bbecdd9f1b50143c8fefb59612803f8c4b8"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00001-of-00024.parquet",
+    "size": 105851200,
+    "lfs": {
+      "oid": "268be504c99caf8446e4f10c575e0afb07d55b1cddb96cd7c921b68090e9a61e",
+      "size": 105851200,
+      "pointerSize": 134
+    },
+    "oid": "63f6dbc3db84715d6b2d0bf9fddafc6bc5bfd867"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00002-of-00024.parquet",
+    "size": 90666039,
+    "lfs": {
+      "oid": "10e85f8868049785c25e516c3fd98dcdc62e4c9c27dc2d13742f071a6e74c894",
+      "size": 90666039,
+      "pointerSize": 133
+    },
+    "oid": "7b06d1d3fe667feb13b32b97275ce3456d5070d0"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00003-of-00024.parquet",
+    "size": 92779539,
+    "lfs": {
+      "oid": "1ae4e5ff1369d850a812692ec059bee94cb855aa15e5556b4368464756b461dc",
+      "size": 92779539,
+      "pointerSize": 133
+    },
+    "oid": "a3b07ce3465a96994c201fd563ed633747d4fb25"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00004-of-00024.parquet",
+    "size": 75215119,
+    "lfs": {
+      "oid": "e330d8914dc324c9766bca59192f411d26d99cf6483c8c1a768653fc10987d5d",
+      "size": 75215119,
+      "pointerSize": 133
+    },
+    "oid": "6aa7be63cc30894e8a68d71bca4eefd4c1d873ee"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00005-of-00024.parquet",
+    "size": 84792967,
+    "lfs": {
+      "oid": "9b916ddb13ba3e81f4eae4b666863bf2fd524ba4f337e638ef5f038d229e5dc8",
+      "size": 84792967,
+      "pointerSize": 133
+    },
+    "oid": "4a9c26fa0ab6b0115b9752ea2f3f2cd058e96a7b"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00006-of-00024.parquet",
+    "size": 86871259,
+    "lfs": {
+      "oid": "add807c68dc527538e886518aaca72e5c22bc66ee7d5a0c3efa8a60cfc422ec2",
+      "size": 86871259,
+      "pointerSize": 133
+    },
+    "oid": "adeb9aac3186a56d338f0e537ea2f7e6fb8f3cf2"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00007-of-00024.parquet",
+    "size": 81032752,
+    "lfs": {
+      "oid": "549cdafd43c28939c197ed09116406165f41e1e7ded507dd4a4145b385e8559a",
+      "size": 81032752,
+      "pointerSize": 133
+    },
+    "oid": "aeace296f1cef7bc54b286ec941aabc30dfa76dd"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00008-of-00024.parquet",
+    "size": 67232602,
+    "lfs": {
+      "oid": "4edff0be4be9e4c18fe1c3c8cdab21f344a5ef705443f06a8999dceafcd338af",
+      "size": 67232602,
+      "pointerSize": 133
+    },
+    "oid": "bf5e6aa7e6b99e3dc22c9c51dbcce532c6c98909"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00009-of-00024.parquet",
+    "size": 92541246,
+    "lfs": {
+      "oid": "792bb5df7dfb832fea6d10d30a4118120d13a419848a4e5f9c2b7e20ce05d472",
+      "size": 92541246,
+      "pointerSize": 133
+    },
+    "oid": "27061bafbac44e2d3516d654594f251325d9531f"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00010-of-00024.parquet",
+    "size": 85740484,
+    "lfs": {
+      "oid": "ecca0664529d4b8b36b54567ea455d36840a6d7fc84df790ff19d7f429441b31",
+      "size": 85740484,
+      "pointerSize": 133
+    },
+    "oid": "a518c53d24b4fb52cd76e80e3dd409cd30727f22"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00011-of-00024.parquet",
+    "size": 74322213,
+    "lfs": {
+      "oid": "d90d853083e4604fa70737566fdb7645b11ecf4c29e9d6c8ddb8ba335c96e3c6",
+      "size": 74322213,
+      "pointerSize": 133
+    },
+    "oid": "79aac8ce934407e8c290783c850c878a2e14b953"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00012-of-00024.parquet",
+    "size": 45463634,
+    "lfs": {
+      "oid": "ac02e813ba66763682c9367aec0353d8c71c214cf176622c33965cee9f9dd4f2",
+      "size": 45463634,
+      "pointerSize": 133
+    },
+    "oid": "2f5be01d99d5fe842a28045a794a7506d7c34a77"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00013-of-00024.parquet",
+    "size": 85924828,
+    "lfs": {
+      "oid": "0ea21b9afdb930bf250777d1a6bf3a3711b4ae6aa9a3fae68244870face9fa9f",
+      "size": 85924828,
+      "pointerSize": 133
+    },
+    "oid": "6e21956d4bdba7271af75b066601302b92983c77"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00014-of-00024.parquet",
+    "size": 77161679,
+    "lfs": {
+      "oid": "e38ab4079defa1254ccc54c5ab3ff79be25b4a17b4cede02ea34a3dec3d80368",
+      "size": 77161679,
+      "pointerSize": 133
+    },
+    "oid": "1713a38440f4df8ccc098fd326954a88e3e40619"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00015-of-00024.parquet",
+    "size": 91801097,
+    "lfs": {
+      "oid": "629714b039c6e7ef970adcdccb64fd505d9639d3b03149f6a0672520faf8e14f",
+      "size": 91801097,
+      "pointerSize": 133
+    },
+    "oid": "db14a89d7649e1c9661347babc66484a53bd1192"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00016-of-00024.parquet",
+    "size": 79160813,
+    "lfs": {
+      "oid": "61826bacdc28feb16302112bf7ccd4e978a9a055bdbb405708f4249f9d138cb3",
+      "size": 79160813,
+      "pointerSize": 133
+    },
+    "oid": "fc5c295be994754621170cee6f7e0c36db02b6b0"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00017-of-00024.parquet",
+    "size": 86112817,
+    "lfs": {
+      "oid": "c0d6ded8a027a646fa3773d3810bacb2e7495db79b58d0cd5cd31bad5766c275",
+      "size": 86112817,
+      "pointerSize": 133
+    },
+    "oid": "a1a9ac191c88e49cb862330fb3350e2da848db41"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00018-of-00024.parquet",
+    "size": 85014656,
+    "lfs": {
+      "oid": "a84027a7b43736dc3de97e0f64ec664b47bf237c1864738c2fdf3a8d8b4bf3ed",
+      "size": 85014656,
+      "pointerSize": 133
+    },
+    "oid": "5a1041ece9f012921dac706ed9b34cdaf00d0f1b"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00019-of-00024.parquet",
+    "size": 96240363,
+    "lfs": {
+      "oid": "7d47c3d4d504540f8d82376d238014bf42642b7947a0fe4997b28479dceefb27",
+      "size": 96240363,
+      "pointerSize": 133
+    },
+    "oid": "907417fa1ed239d513c6ec8c686f1da226a849d6"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00020-of-00024.parquet",
+    "size": 103078380,
+    "lfs": {
+      "oid": "fced4c9af8d5fd52ec9439b5a8393e8856dc185e872d1d66af23ddd5820a7f5a",
+      "size": 103078380,
+      "pointerSize": 134
+    },
+    "oid": "15e4c51dda35d15e2f27859c536adda854a0a488"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00021-of-00024.parquet",
+    "size": 72435118,
+    "lfs": {
+      "oid": "484ca7d1eaf92cadb24c8af88d680fb70b574839c4b1619d9ecb62daae103605",
+      "size": 72435118,
+      "pointerSize": 133
+    },
+    "oid": "d36e7e6c1b19edf97b25e5d02fc993394f8d5da8"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00022-of-00024.parquet",
+    "size": 71810377,
+    "lfs": {
+      "oid": "686402ec6da3a42cc52031c6bf86fc73b501fbbd66c32f6559e33a870aeb7f53",
+      "size": 71810377,
+      "pointerSize": 133
+    },
+    "oid": "eb1b101cf183f25a7105f2bf8cd5f1510a3604c8"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/train-00023-of-00024.parquet",
+    "size": 71079339,
+    "lfs": {
+      "oid": "976b84e517bbb0ba66db37b25a1149dfdde72428c2e50b620a90f9267929952b",
+      "size": 71079339,
+      "pointerSize": 133
+    },
+    "oid": "7ca1c95b3c7d476ca09578de7857d665c7bdc234"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/validation-00000-of-00004.parquet",
+    "size": 63414360,
+    "lfs": {
+      "oid": "a71b63eca8d3cedc5bda7f7d2a4c959b041dca8766592675f6bd0ac49500775a",
+      "size": 63414360,
+      "pointerSize": 133
+    },
+    "oid": "59d00a4ed21a6865b3ee865cdb74f7e8167c8572"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/validation-00001-of-00004.parquet",
+    "size": 72073153,
+    "lfs": {
+      "oid": "12cbc18ad5a499deebca691fcdf9a852c3d3917e448b30dc604bfdfb4559e756",
+      "size": 72073153,
+      "pointerSize": 133
+    },
+    "oid": "e8755286f8b701363740b310380a019ded6a20fe"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/validation-00002-of-00004.parquet",
+    "size": 57944291,
+    "lfs": {
+      "oid": "0f4b8f8633105395d8acb5fd341311c614033f35d99cc25337e43c7fd905b3c1",
+      "size": 57944291,
+      "pointerSize": 133
+    },
+    "oid": "7a0c6d857c50e6067779a19c73b78c37b2d0a09f"
+  },
+  {
+    "repo": "lmms-lab/DocVQA",
+    "revision": "539088ef8a8ada01ac8e2e6d4e372586748a265e",
+    "path": "InfographicVQA/validation-00003-of-00004.parquet",
+    "size": 73025844,
+    "lfs": {
+      "oid": "254fdbd3f69499aca70292167f61d89430fb485b3f6a2fce939ab84f02ae5776",
+      "size": 73025844,
+      "pointerSize": 133
+    },
+    "oid": "621a2d2c8012e9fd79b2af4a2ba2b194646bdc31"
+  },
+  {
+    "repo": "ahmed-masry/ChartQA",
+    "revision": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+    "path": "data/test-00000-of-00001.parquet",
+    "size": 68916402,
+    "lfs": {
+      "oid": "84889bae30aaf6e24ff899e1604221606c0b65e658b6c70a7d02c79f50fc87df",
+      "size": 68916402,
+      "pointerSize": 133
+    },
+    "oid": "b57829eba2c59db40c7fa46ebe45e7e08cfafb82"
+  },
+  {
+    "repo": "ahmed-masry/ChartQA",
+    "revision": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+    "path": "data/train-00000-of-00003.parquet",
+    "size": 219074332,
+    "lfs": {
+      "oid": "3cca5735d17267ba006b298f78743ef33156c18db9deeadc9c0982ad1ea74bb7",
+      "size": 219074332,
+      "pointerSize": 134
+    },
+    "oid": "0423fb16f7a285b1a58e8a98955caea0cd914c12"
+  },
+  {
+    "repo": "ahmed-masry/ChartQA",
+    "revision": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+    "path": "data/train-00001-of-00003.parquet",
+    "size": 313907067,
+    "lfs": {
+      "oid": "7325567601edb49501b7e3ae070f1a7fc9a0e69617803c50bd013a818a9b9610",
+      "size": 313907067,
+      "pointerSize": 134
+    },
+    "oid": "b333145b78682d1dca79f3426c30d71316527178"
+  },
+  {
+    "repo": "ahmed-masry/ChartQA",
+    "revision": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+    "path": "data/train-00002-of-00003.parquet",
+    "size": 321464759,
+    "lfs": {
+      "oid": "e067dfcc67183219cfab854252038bcd517b26e37367ed6a2ff4ead8d0955c27",
+      "size": 321464759,
+      "pointerSize": 134
+    },
+    "oid": "ee08ae4ca81c81b7244823c51a4af41ba64d6171"
+  },
+  {
+    "repo": "ahmed-masry/ChartQA",
+    "revision": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+    "path": "data/val-00000-of-00001.parquet",
+    "size": 50238778,
+    "lfs": {
+      "oid": "46ee830d03a1f288ef21be3d8d149d307cbf09404f9e056906169e617679fb09",
+      "size": 50238778,
+      "pointerSize": 133
+    },
+    "oid": "f6b463e8fce3c7812438adf58d0b49c9711e9bdb"
+  },
+  {
+    "repo": "echo840/OCRBench",
+    "revision": "92a54bd1384387c178d5a07140a2d85e0a3d12e1",
+    "path": "data/test-00000-of-00001.parquet",
+    "size": 67576988,
+    "lfs": {
+      "oid": "d9cc9f488e5310143d8d89956c19d0bdfd71e7089025da5202643f73720df7f5",
+      "size": 67576988,
+      "pointerSize": 133
+    },
+    "oid": "7da03b7d73c5978bd84596d8d9db7147f175772f"
+  }
+]

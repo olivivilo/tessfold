@@ -1,0 +1,5 @@
+# Python 3.10 + CANN 8.5; install matching vendor wheels on your Ascend host.
+torch==2.8.0
+torchvision==0.23.0
+torch-npu==2.8.0.post5
+-e .[test,analysis]

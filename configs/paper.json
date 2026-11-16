@@ -1,0 +1,21 @@
+{
+  "vision_model": "models/MonkeyOCRv2-B",
+  "language_model": "models/Qwen3-1.7B",
+  "data_dir": "data",
+  "output_dir": "artifacts/paper",
+  "seed": 42,
+  "device": "cuda",
+  "dtype": "bfloat16",
+  "threads": 8,
+  "max_pixels": 1003520,
+  "min_pixels": 3136,
+  "max_answer_tokens": 2048,
+  "max_new_tokens": 128,
+  "stage1_steps": 1000,
+  "stage1_lr": 0.001,
+  "stage2_steps": 1000,
+  "stage2_lr": 0.00001,
+  "gradient_accumulation": 128,
+  "weight_decay": 0.01,
+  "gradient_clip": 1.0
+}

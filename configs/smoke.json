@@ -1,0 +1,21 @@
+{
+  "vision_model": "models/MonkeyOCRv2-B",
+  "language_model": "models/Qwen3-1.7B",
+  "data_dir": "data",
+  "output_dir": "artifacts/smoke",
+  "seed": 42,
+  "device": "cpu",
+  "dtype": "float32",
+  "threads": 16,
+  "max_pixels": 12544,
+  "min_pixels": 3136,
+  "max_answer_tokens": 32,
+  "max_new_tokens": 16,
+  "stage1_steps": 24,
+  "stage1_lr": 0.001,
+  "stage2_steps": 4,
+  "stage2_lr": 0.00001,
+  "gradient_accumulation": 1,
+  "weight_decay": 0.01,
+  "gradient_clip": 1.0
+}
