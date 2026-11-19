@@ -77,16 +77,3 @@ See [Entry points](docs/ENTRYPOINTS.md) for compatibility details and [Method](d
 The portable runner uses a common development-set selection criterion, native task metrics, and exact gradient weighting for short final batches. It does not reproduce every historical protocol verbatim. For example, earlier UND experiments used fixed-epoch selection and field-level exact-match reporting. To reproduce a particular historical protocol, use the corresponding retained scripts and regenerate their required registrations. See [Reproducibility](docs/REPRODUCIBILITY.md) for these differences.
 
 The source release has been checked with offline unit tests, a synthetic frozen-decoder training/resume/evaluation cycle, and reconstruction of public-manifest row indices. **This source preparation did not repeat full training with the real 8B or UND backbone. Synthetic tests do not establish reproduction of the paper's VQA scores.** Hardware, dependencies, dataset versions, and numerical kernels can affect results.
-
-## Before publishing
-
-```bash
-git status --short
-.venv/bin/python scripts/audit_source_repo.py
-# Git is initialized locally. Replace this placeholder with your repository URL:
-git remote add origin <YOUR_GITHUB_REPOSITORY_URL>
-git commit -m "Add TessFold reproducible source"
-git push -u origin main
-```
-
-For attribution to MetaCompress, MonkeyOCRv2, and related work, see [Third-party notices](THIRD_PARTY_NOTICES.md) and the [bibliography](docs/references.bib). The licensing status of the project's added code is documented in the notices; this source preparation does not assign a license on behalf of the rights holder.
