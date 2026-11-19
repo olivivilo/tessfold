@@ -80,22 +80,22 @@ def main():
                                             'expanded_ci95': sb['per_task'][task]['spearman_image_cluster_ci95']}
                                       for task in sa['per_task']}}
     (new/'scale_comparison.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')
-    lines = ['# 扩大图像规模的结果对比', '',
-             f"原实验 {pa['questions']} 张；扩大后 {pb['questions']} 张，实际 {pb['questions']/pa['questions']:.4f} 倍。每任务目标 480 张，DeepForm/WTQ 的评测图像不足，使用全部 300/421 张。", '',
-             '所有科学参数、矩阵边界、随机种子规则、loss、推理和统计方法保持一致。每图仍选一题，每个随机压缩独立保留；扩大后的样本包含原先全部图像，重叠部分也重新运行，没有复用旧预测。', '',
-             '| 指标 | 原规模 | 扩大规模 |', '|---|---:|---:|']
+    lines = ['# Comparison After Increasing the Image Sample', '',
+             f"Original experiment {pa['questions']}  images; expanded sample  {pb['questions']}  images; actual  {pb['questions']/pa['questions']:.4f} ×. Target 480 images/task; DeepForm/WTQ have fewer evaluation images, so use all 300/421.", '',
+             'Scientific settings, matrix bounds, seeds, losses, inference, and statistics are unchanged. Still one question/image and one record/random compression. Expanded samples include all original images, with overlaps rerun rather than reusing predictions.', '',
+             '| Metric | Original scale | Expanded scale |', '|---|---:|---:|']
     for r in rows:
         fmt = lambda x: 'NA' if x is None else f'{x:.4f}'
         lines.append(f"| {r['metric']} | {fmt(r['original'])} | {fmt(r['expanded'])} |")
-    lines += ['', '| 任务 | 原 Spearman | 扩大后 Spearman | 扩大后图像 bootstrap 95% CI |', '|---|---:|---:|---|']
+    lines += ['', '| Task | Original Spearman | Expanded-sample Spearman | Expanded-sample image-bootstrap 95% CI |', '|---|---:|---:|---|']
     for task, r in result['per_task_comparison'].items():
         lines.append(f"| {task} | {r['original_spearman']:.4f} | {r['expanded_spearman']:.4f} | {[round(v,4) for v in r['expanded_ci95']]} |")
-    lines += ['', '## 重叠样本的独立重跑一致性', '',
-              f"- 原先 {len(old_teachers)} 个 teacher 均重新生成：作答相同 {matches['prediction']}，视觉特征 hash 相同 {matches['feature_sha256']}。",
-              f"- 原先 {len(old_trials)} 个压缩试次均重新运行：student 作答相同 {trial_matches['student_prediction']}，压缩特征 hash 相同 {trial_matches['compressed_feature_sha256']}。",
-              f"- 全部 loss 组成项最大差异：{max_loss_diff:.9g}。",
-              '- 每任务图像数受到数据量上限影响，合并统计的任务权重与原先略有不同，应结合分任务结果解读。', '',
-              '[扩大规模完整报告](TOKEN_PROXY_20X_RESULTS.md)；[逐次作答](../artifacts/token_proxy/'+a.label+'/review.html)；[原规模报告](TOKEN_PROXY_RESULTS.md)。', '']
+    lines += ['', '## Independent Rerun Consistency on Overlapping Samples', '',
+              f"- Original  {len(old_teachers)}  teachers are regenerated: identical answers  {matches['prediction']}, matching visual-feature hashes  {matches['feature_sha256']}. ",
+              f"- Original  {len(old_trials)}  compression trials are rerun: identical student answers  {trial_matches['student_prediction']}, matching compressed-feature hashes  {trial_matches['compressed_feature_sha256']}. ",
+              f"- Maximum difference across all loss components: {max_loss_diff:.9g}. ",
+              '- Dataset-size limits change image counts and hence pooled task weights slightly from the original study; interpret per-task results alongside pooled statistics.', '',
+              '[Full expanded-scale report](TOKEN_PROXY_20X_RESULTS.md); [Per-trial answers](../artifacts/token_proxy/'+a.label+'/review.html); [Original-scale report](TOKEN_PROXY_RESULTS.md). ', '']
     (ROOT/'docs/TOKEN_PROXY_SCALE_COMPARISON.md').write_text('\n'.join(lines))
     print(json.dumps({k:v for k,v in result.items() if k not in ('prediction_mismatches','per_task_comparison')},indent=2))
 

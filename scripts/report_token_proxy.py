@@ -161,24 +161,24 @@ def write_review(out, rows, filename='review.html'):
         for task, task_rows in by_task.items():
             task_filename = f'review_{task}.html'
             write_review(out, task_rows, task_filename)
-            links.append(f'<li><a href="{task_filename}">{task}</a>：{len(task_rows):,} 次独立压缩</li>')
-        (out/filename).write_text('<!doctype html><html lang="zh"><meta charset="utf-8">'
-                                 '<title>随机压缩作答对照</title><style>body{font:17px system-ui;margin:40px;line-height:1.9}</style>'
-                                 f'<h1>随机 token 压缩逐次作答对照</h1><p>共 {len(rows):,} 次压缩。为便于打开，按任务分为页面；每页均可筛选保留率、分组、试次类型和按 loss/下降排序，点击行查看原图与完整作答。</p>'
-                                 '<ul>'+''.join(links)+'</ul><p><a href="trials.csv">全部逐次结果 CSV</a> · <a href="RESULTS.md">完整实验报告</a></p></html>')
+            links.append(f'<li><a href="{task_filename}">{task}</a>: {len(task_rows):,}  independent compressions</li>')
+        (out/filename).write_text('<!doctype html><html lang="en"><meta charset="utf-8">'
+                                 '<title>Random-compression answer comparison</title><style>body{font:17px system-ui;margin:40px;line-height:1.9}</style>'
+                                 f'<h1>Per-trial random-token-compression answers</h1><p>Total {len(rows):,}  compressions. Pages are split by task; filter retention/family/trial type and sort loss/drop, then click a row for image/full answers.</p>'
+                                 '<ul>'+''.join(links)+'</ul><p><a href="trials.csv">Complete per-trial CSV</a> · <a href="RESULTS.md">Full experimental report</a></p></html>')
         return
     data = [{k: r[k] for k in ('id', 'sample_id', 'task', 'image', 'question', 'answers', 'kind', 'family', 'ratio',
                                'replicate', 'matrix_seed', 'teacher_prediction', 'teacher_score',
                                'student_prediction', 'student_score', 'score_drop', 'loss')} for r in rows]
-    template = '''<!doctype html><html lang="zh"><meta charset="utf-8"><title>Token compression trial review</title>
+    template = '''<!doctype html><html lang="en"><meta charset="utf-8"><title>Token compression trial review</title>
 <style>body{font:15px system-ui;margin:24px;color:#182535}select,input,button{margin:6px;padding:7px}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left}tr:hover{background:#eaf3fa;cursor:pointer}#detail{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:20px 0}img{max-width:100%;max-height:680px}pre{white-space:pre-wrap;overflow-wrap:anywhere}th{position:sticky;top:0;background:white}.hint{color:#516274}</style>
-<h1>随机 token 压缩逐次作答对照</h1><p>每行是一次独立压缩，分数范围 0–1，下降 = teacher − student。未对随机试次作答取平均。</p>
-<div id="controls"></div><label><input type="checkbox" id="positive">仅 teacher 得分 &gt; 0</label><label>排序 <select id="sort"><option value="loss">loss 高到低</option><option value="drop">分数下降大到小</option><option value="lossasc">loss 低到高</option></select></label><p id="count"></p>
-<div id="detail"><div id="text"></div><img id="image"></div><button id="prev">上一页</button><button id="next">下一页</button>
-<table><thead><tr><th>任务 / 题号</th><th>保留率 / 分组 / 随机种子</th><th>V1 loss</th><th>teacher</th><th>student</th><th>下降</th><th>student 作答</th></tr></thead><tbody id="body"></tbody></table>
-<script>const rows=__DATA__;let page=0;const filters={};const $=id=>document.getElementById(id);for(const [key,name] of [['task','任务'],['ratio','保留率'],['family','分组'],['kind','类型']]){const label=document.createElement('label');label.textContent=name;const s=document.createElement('select');s.add(new Option('全部',''));[...new Set(rows.map(r=>r[key]))].sort().forEach(v=>s.add(new Option(v,v)));s.onchange=()=>{filters[key]=s.value;page=0;render()};label.append(s);$('controls').append(label)}
-function detail(r){$('text').textContent='';for(const [name,value] of [['题号',r.sample_id],['问题',r.question],['Gold',r.answers.join(' | ')],['Teacher',r.teacher_prediction+' [score '+r.teacher_score+']'],['Student',r.student_prediction+' [score '+r.student_score+']'],['Loss',JSON.stringify(r.loss,null,2)],['随机矩阵',JSON.stringify({family:r.family,ratio:r.ratio,seed:r.matrix_seed,replicate:r.replicate},null,2)]]){const b=document.createElement('b');b.textContent=name;const p=document.createElement('pre');p.textContent=value;$('text').append(b,p)}$('image').src='../../../'+r.image}
-function render(){let selected=rows.filter(r=>Object.entries(filters).every(([k,v])=>v===''||String(r[k])===v)&&(!$('positive').checked||r.teacher_score>0));const sort=$('sort').value;selected.sort((a,b)=>sort==='drop'?b.score_drop-a.score_drop:sort==='lossasc'?a.loss.total-b.loss.total:b.loss.total-a.loss.total);page=Math.max(0,Math.min(page,Math.ceil(selected.length/100)-1));$('count').textContent=selected.length+' 次独立压缩；第 '+(page+1)+' 页，每页最多 100 行。点击行查看图像、gold 和完整作答。';$('body').textContent='';for(const r of selected.slice(page*100,page*100+100)){const tr=document.createElement('tr');for(const value of [r.task+' / '+r.sample_id,r.ratio+' / '+r.family+' / '+r.matrix_seed,r.loss.total.toFixed(5),r.teacher_score.toFixed(4),r.student_score.toFixed(4),r.score_drop.toFixed(4),r.student_prediction]){const td=document.createElement('td');td.textContent=value;tr.append(td)}tr.onclick=()=>detail(r);$('body').append(tr)}}$('positive').onchange=$('sort').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page--;render()};$('next').onclick=()=>{page++;render()};render();detail(rows[0]);</script></html>'''
+<h1>Per-trial random-token-compression answers</h1><p>Each row is an independent compression; scores in [0,1], drop=teacher−student. Random-trial answers are not averaged.</p>
+<div id="controls"></div><label><input type="checkbox" id="positive">Teacher score &gt; 0 only</label><label>Ordering <select id="sort"><option value="loss">Loss: high to low</option><option value="drop">Score drop: high to low</option><option value="lossasc">Loss: low to high</option></select></label><p id="count"></p>
+<div id="detail"><div id="text"></div><img id="image"></div><button id="prev">Previous page</button><button id="next">Next page</button>
+<table><thead><tr><th>Task / question ID</th><th>Retention / family / random seed</th><th>V1 loss</th><th>teacher</th><th>student</th><th>Drop</th><th>Student answer</th></tr></thead><tbody id="body"></tbody></table>
+<script>const rows=__DATA__;let page=0;const filters={};const $=id=>document.getElementById(id);for(const [key,name] of [['task','Task'],['ratio','Retention'],['family','Family'],['kind','Type']]){const label=document.createElement('label');label.textContent=name;const s=document.createElement('select');s.add(new Option('All',''));[...new Set(rows.map(r=>r[key]))].sort().forEach(v=>s.add(new Option(v,v)));s.onchange=()=>{filters[key]=s.value;page=0;render()};label.append(s);$('controls').append(label)}
+function detail(r){$('text').textContent='';for(const [name,value] of [['Question ID',r.sample_id],['question',r.question],['Gold',r.answers.join(' | ')],['Teacher',r.teacher_prediction+' [score '+r.teacher_score+']'],['Student',r.student_prediction+' [score '+r.student_score+']'],['Loss',JSON.stringify(r.loss,null,2)],['Random matrix',JSON.stringify({family:r.family,ratio:r.ratio,seed:r.matrix_seed,replicate:r.replicate},null,2)]]){const b=document.createElement('b');b.textContent=name;const p=document.createElement('pre');p.textContent=value;$('text').append(b,p)}$('image').src='../../../'+r.image}
+function render(){let selected=rows.filter(r=>Object.entries(filters).every(([k,v])=>v===''||String(r[k])===v)&&(!$('positive').checked||r.teacher_score>0));const sort=$('sort').value;selected.sort((a,b)=>sort==='drop'?b.score_drop-a.score_drop:sort==='lossasc'?a.loss.total-b.loss.total:b.loss.total-a.loss.total);page=Math.max(0,Math.min(page,Math.ceil(selected.length/100)-1));$('count').textContent=selected.length+'  independent compressions; page  '+(page+1)+' ; at most  100  rows. Click for the image, gold and complete answers.';$('body').textContent='';for(const r of selected.slice(page*100,page*100+100)){const tr=document.createElement('tr');for(const value of [r.task+' / '+r.sample_id,r.ratio+' / '+r.family+' / '+r.matrix_seed,r.loss.total.toFixed(5),r.teacher_score.toFixed(4),r.student_score.toFixed(4),r.score_drop.toFixed(4),r.student_prediction]){const td=document.createElement('td');td.textContent=value;tr.append(td)}tr.onclick=()=>detail(r);$('body').append(tr)}}$('positive').onchange=$('sort').onchange=()=>{page=0;render()};$('prev').onclick=()=>{page--;render()};$('next').onclick=()=>{page++;render()};render();detail(rows[0]);</script></html>'''
     (out/filename).write_text(template.replace('__DATA__', json.dumps(data, ensure_ascii=False).replace('</', '<\\/')))
 
 
@@ -281,65 +281,65 @@ def main():
     ordering_accuracy = summary['paired_random_seed_ordering']['ordering_accuracy_on_nonties']
     ordering_text = 'NA' if ordering_accuracy is None else f'{100*ordering_accuracy:.1f}%'
     main_rho = summary['all_random']['spearman']
-    verdict = ('**本轮未验证 V1 的强相关性。**' if main_rho is None or main_rho < .7
-               else '**总体相关达到预设阈值；仍需结合以下条件分析判断。**')
+    verdict = ('**This round does not establish strong correlation for V1.**' if main_rho is None or main_rho < .7
+               else '**Pooled correlation meets the prespecified threshold; conditional analyses below remain necessary.**')
     protocol_doc = 'TOKEN_PROXY_20X.md' if a.label == 'random_v1_20x' else 'TOKEN_PROXY.md'
-    lines = ['# 随机 token 压缩：decoder-free loss proxy 验证', '',
-             f"完成 **{len(teachers)} 题 / {len({r['document_id'] for r in teachers})} 张图像、{len(random_rows)} 次随机压缩、{len(rows)-len(random_rows)} 次均值池化对照**。每一次压缩均保留独立作答与 loss，没有先平均随机试次的下游分数再计算相关性。", '',
-             f"主检验 Spearman(loss, teacher 分数 − student 分数) = **{fmt(summary['all_random']['spearman'])}**，按图像 cluster bootstrap 的 95% CI = **{[round(v,3) for v in summary['all_random']['spearman_image_cluster_ci95']]}**。预设强关联阈值为 0.7。", '',
-             f"{verdict} 同题跨配置的 rank 相关为 {fmt(summary['within_question']['rank_residual_correlation'])}；控制题目与 rate×family 后为 {fmt(summary['partial_rank_question_and_ratio_family'])}；固定题目、保留率和分组后，两次随机矩阵的非平局排序正确率为 {ordering_text}。相关性结论只适用于本轮随机矩阵分布，不等于已经证明训练该 loss 一定有效或一定无效。", '',
-             '入口：[实验方案与运行命令]('+protocol_doc+')；[逐次可筛选作答对照](../artifacts/token_proxy/'+a.label+'/review.html)；[逐次 CSV](../artifacts/token_proxy/'+a.label+'/trials.csv)；[完整统计 JSON](../artifacts/token_proxy/'+a.label+'/analysis.json)。', '',
-             '| 任务 | 图像 | 随机试次 | Spearman | 图像 bootstrap 95% CI | teacher>0 子集 Spearman |',
+    lines = ['# Random Token Compression: Decoder-Free Loss-Proxy Validation', '',
+             f"Completed **{len(teachers)}  questions /  {len({r['document_id'] for r in teachers})}  images, {len(random_rows)}  random compressions, {len(rows)-len(random_rows)}  mean-pooling controls**. Each compression retains its own answer/loss; downstream trials are never averaged before correlation.", '',
+             f"Primary Spearman(loss, teacher score − student score) = **{fmt(summary['all_random']['spearman'])}**, image-cluster bootstrap 95% CI **{[round(v,3) for v in summary['all_random']['spearman_image_cluster_ci95']]}**. The prespecified strong-correlation threshold is 0.7.", '',
+             f"{verdict} Within-question cross-configuration rank correlation:  {fmt(summary['within_question']['rank_residual_correlation'])}; controlling question and rate×family gives  {fmt(summary['partial_rank_question_and_ratio_family'])}; non-tied ordering accuracy between two random matrices at fixed question/retention/family:  {ordering_text}. Correlation findings apply to this random-matrix distribution; they prove neither inevitable success nor inevitable failure of training with the loss.", '',
+             'Entry point: [Design and commands]('+protocol_doc+'); [Filterable per-trial answers](../artifacts/token_proxy/'+a.label+'/review.html); [Per-trial CSV](../artifacts/token_proxy/'+a.label+'/trials.csv); [Complete statistics JSON](../artifacts/token_proxy/'+a.label+'/analysis.json). ', '',
+             '| Task | Images | Random trials | Spearman | Image-bootstrap 95% CI | Teacher>0 subset Spearman |',
              '|---|---:|---:|---:|---|---:|']
     for task in TASKS:
         s, ps = summary['per_task'][task], summary['per_task_teacher_positive'][task]
         ci = s['spearman_image_cluster_ci95']
         lines.append(f"| {task} | {s['images']} | {s['trials']} | {fmt(s['spearman'])} | {str([round(v,3) for v in ci]) if ci else 'NA'} | {fmt(ps['spearman'])} |")
-    lines += ['', '## 控制压缩率与题目难度', '',
-              f"- teacher>0 子集：ρ={fmt(summary['teacher_positive']['spearman'])}；teacher=1 子集：ρ={fmt(summary['teacher_perfect']['spearman'])}。",
-              f"- 同题内中心化 rank 相关：{fmt(summary['within_question']['rank_residual_correlation'])}。",
-              f"- 同题且同保留率：{fmt(summary['within_question_ratio']['rank_residual_correlation'])}。",
-              f"- 同题、同保留率、同分组，仅比较两次随机生成：{fmt(summary['within_question_ratio_family']['rank_residual_correlation'])}；{summary['within_question_ratio_family']['strata_with_outcome_variation']}/{summary['within_question_ratio_family']['strata']} 个配对组的下游分数有变化。",
-              f"- 同时控制题目与保留率×分组的两因素 rank 残差相关：{fmt(summary['partial_rank_question_and_ratio_family'])}。", '',
-              f"- 同题同保留率同分组的双 seed 配对：{summary['paired_random_seed_ordering']['concordant']} 对符合 loss 大则下降大，{summary['paired_random_seed_ordering']['discordant']} 对方向相反，{summary['paired_random_seed_ordering']['outcome_ties']} 对下游得分相同；非平局排序正确率 {fmt(summary['paired_random_seed_ordering']['ordering_accuracy_on_nonties'])}。", '',
-              f"- 上述非平局排序正确率的图像 cluster bootstrap 95% CI：{summary['paired_random_seed_ordering']['ordering_accuracy_cluster_ci95']}；条件 rank 相关的 CI 见 analysis.json 的 within_question* 字段。", '',
-              '| 保留率 M/N | local ρ | global ρ | 合并 ρ |', '|---:|---:|---:|---:|']
+    lines += ['', '## Controlling for Retention and Question Difficulty', '',
+              f"- Teacher>0 subset: ρ={fmt(summary['teacher_positive']['spearman'])}; teacher=1 subset: ρ={fmt(summary['teacher_perfect']['spearman'])}. ",
+              f"- Within-question centered-rank correlation: {fmt(summary['within_question']['rank_residual_correlation'])}. ",
+              f"- Same question and retention: {fmt(summary['within_question_ratio']['rank_residual_correlation'])}. ",
+              f"- Same question, retention, and family, comparing two random draws only: {fmt(summary['within_question_ratio_family']['rank_residual_correlation'])}; {summary['within_question_ratio_family']['strata_with_outcome_variation']}/{summary['within_question_ratio_family']['strata']}  paired groups change downstream score.",
+              f"- Two-factor rank-residual correlation controlling for question and retention×family: {fmt(summary['partial_rank_question_and_ratio_family'])}. ", '',
+              f"- Paired seeds for the same question, retention, and family: {summary['paired_random_seed_ordering']['concordant']}  pairs agree that higher loss means larger drop, {summary['paired_random_seed_ordering']['discordant']}  pairs disagree, {summary['paired_random_seed_ordering']['outcome_ties']}  downstream-score ties; non-tied ordering accuracy  {fmt(summary['paired_random_seed_ordering']['ordering_accuracy_on_nonties'])}. ", '',
+              f"- Image-cluster bootstrap 95% CI for non-tied ordering accuracy: {summary['paired_random_seed_ordering']['ordering_accuracy_cluster_ci95']}; conditional-rank CIs: analysis.json within_question* fields.", '',
+              '| Retention M/N | local ρ | global ρ | Pooled ρ |', '|---:|---:|---:|---:|']
     for r in ratios:
         lines.append(f"| {r} | {fmt(summary['per_ratio_family'][f'{r}/local']['spearman'])} | {fmt(summary['per_ratio_family'][f'{r}/global']['spearman'])} | {fmt(summary['per_ratio'][str(r)]['spearman'])} |")
-    lines += ['', '## Loss 组成项消融（同一批独立试次上重新组合 loss，不重新训练）', '',
-              '| 组成 | pooled Spearman | 同题内 rank 相关 |', '|---|---:|---:|']
+    lines += ['', '## Loss-Component Ablations (Recombining the Same Independent Trials; No Retraining)', '',
+              '| Component | pooled Spearman | Within-question rank correlation |', '|---|---:|---:|']
     for k, s in summary['component_ablation'].items():
         lines.append(f"| {k} | {fmt(s['spearman'])} | {fmt(summary['component_within_question'][k]['rank_residual_correlation'])} |")
     if 'exploratory_temperature_sensitivity' in summary:
-        lines += ['', '## 探索性温度敏感性（不替换预设主结果）', '',
-                  '初步检查发现单位 query 再除 sqrt(128) 令 τop=1 的读取几乎均匀，因此额外预设 τop∈{1,0.1,0.03} 重放同一批 X/P 的算子项；不运行 decoder，不挑选最佳温度作为本轮正式 loss。这一分析未写入原始预注册，属于探索性诊断。', '',
-                  '| τop | pooled Spearman | teacher>0 Spearman | 同题内 rank | 同题同率同分组 rank | teacher 熵范围 |', '|---:|---:|---:|---:|---:|---|']
+        lines += ['', '## Exploratory Temperature Sensitivity (Prespecified Primary Results Unchanged)', '',
+                  'Initial inspection found that dividing unit queries by sqrt(128) makes reads at τop=1 nearly uniform. Additional fixed temperatures τop∈{1,0.1,0.03} therefore replay the operator term on the same X/P samples, without running the decoder or choosing the best temperature as the formal loss. This was absent from the original preregistration and is exploratory diagnosis.', '',
+                  '| τop | pooled Spearman | teacher>0 Spearman | Within-question rank correlation | Within-question, retention, and family rank correlation | Teacher entropy range |', '|---:|---:|---:|---:|---:|---|']
         for tau, s in summary['exploratory_temperature_sensitivity']['per_tau'].items():
             lines.append(f"| {tau} | {fmt(s['all_random']['spearman'])} | {fmt(s['teacher_positive']['spearman'])} | {fmt(s['within_question']['rank_residual_correlation'])} | {fmt(s['within_question_ratio_family']['rank_residual_correlation'])} | {[round(v,4) for v in s['entropy_range']]} |")
-    lines += ['', '## 接口与适用范围', '',
-              f"- {len(summary['interface_checks'])} 个接口检查：原生/缓存 prefill logits 逐元素完全一致；生成 token 完全一致；恒等矩阵的 projector 输出和生成均一致。",
-              f"- 本轮 teacher 与既有官方全量 baseline 作答一致：{summary['prior_baseline_matches']}/{len(teachers)}。",
-              f"- teacher 截断 {summary['teacher_truncations']}；student 截断 {summary['student_truncations']}（上限 256）。",
-              f"- 相对平均列质量范围 [{summary['matrix_column_relative_min']:.4f}, {summary['matrix_column_relative_max']:.4f}]；非单元素行最大权重 {summary['matrix_max_non_singleton_weight']:.4f}。",
-              f"- 算子 teacher attention 的归一化熵范围 {summary['teacher_attention_entropy_fraction_range']}，用于检查随机 probe 是否过于接近均匀读取。",
-              '- 测试的是 lossplus 第 12 节纯视觉 V1，不包含需训练文本 query bridge 的可选 QA-aware 项；未训练 compressor、projector 或 LLM。',
-              '- DeepForm/KLC 的逐题相关性指标为归一化 exact match，不冒充文档集合 F1。其余任务使用已有原生逐题指标。',
-              f"- 本轮每任务图像数为 {protocol['counts']}；相关性不能证明训练该 loss 后压缩器一定提升。未检验 ToMe、图像下采样或 QA-aware 桥。", '',
-              '![逐次散点](../artifacts/token_proxy/'+a.label+'/loss_vs_drop.png)', '',
-              '![分层与消融](../artifacts/token_proxy/'+a.label+'/stratified_and_ablation.png)', '']
+    lines += ['', '## Interface Checks and Scope', '',
+              f"- {len(summary['interface_checks'])}  interface checks: native/cached prefill logits are elementwise equal; generated tokens match; identity-projector outputs and generations match.",
+              f"- This round’s teacher matches the existing full official baseline: {summary['prior_baseline_matches']}/{len(teachers)}. ",
+              f"- Truncated teacher responses:  {summary['teacher_truncations']}; truncated student responses  {summary['student_truncations']}(cap=256).",
+              f"- Relative mean column-mass range [{summary['matrix_column_relative_min']:.4f}, {summary['matrix_column_relative_max']:.4f}]; largest weight in a nonsingleton row:  {summary['matrix_max_non_singleton_weight']:.4f}. ",
+              f"- Normalized entropy range of operator teacher attention:  {summary['teacher_attention_entropy_fraction_range']}, checking whether random probes read almost uniformly.",
+              '- Tests visual-only V1 from lossplus Section 12, excluding optional QA-aware terms requiring a trained text-query bridge. Compressor, projector, and LLM are not trained.',
+              '- Per-question DeepForm/KLC correlation uses normalized exact match, not corpus document-set F1. Other tasks retain native per-question metrics.',
+              f"- Images per task in this round:  {protocol['counts']}; correlation does not prove that training the loss will improve compression. ToMe, image downsampling, and QA-aware bridging were not tested.", '',
+              '![Per-trial scatter](../artifacts/token_proxy/'+a.label+'/loss_vs_drop.png)', '',
+              '![Stratification and ablations](../artifacts/token_proxy/'+a.label+'/stratified_and_ablation.png)', '']
     if not protocol['smoke']:
-        lines += ['## 如何理解这些结果', '',
-                  '应优先关注同题、同保留率、同分组内的排序与置信区间，不能只凭合并所有比例的相关性声称“低 loss 的随机压缩通常就能保住作答”。', '']
+        lines += ['## Interpreting These Results', '',
+                  'Prioritize same-question/retention/family ordering and CIs. Pooled correlation across budgets alone does not establish reliable answer preservation at low loss.', '']
         example_rows = sorted([r for r in random_rows if r['sample_id'] == 'ChartQA_test_1636' and r['family'] == 'local' and r['ratio'] == .5], key=lambda r: r['loss']['total'])
         if len(example_rows) == 2:
-            lines += ['例如同样把 ChartQA_test_1636 压到 50%、使用 local：', '',
-                      '| seed 试次 | V1 loss | teacher / gold | student | student 分数 |', '|---:|---:|---|---|---:|']
+            lines += ['For example, local compression of ChartQA_test_1636 at 50%:', '',
+                      '| Seed replicate | V1 loss | teacher / gold | student | Student score |', '|---:|---:|---|---|---:|']
             for r in example_rows:
                 lines.append(f"| {r['replicate']} | {r['loss']['total']:.6f} | {r['teacher_prediction']} / {r['answers'][0]} | {r['student_prediction']} | {r['student_score']} |")
-            lines += ['', '这里 loss 较低的压缩反而答错。所有 seed 均保留，举例不改变统计样本。', '']
+            lines += ['', 'Here lower-loss compression answers incorrectly. All seeds remain; the example does not change the statistical sample.', '']
         lines += [
-                  '算子 probe 在 τ=1 时接近均匀读取，是一项真实的数值诊断；温度敏感性重放表明，仅让读取变尖锐并未解决固定配置下的排序问题。V1 仍然没有问题条件，无法专门强调本题所需证据；这一点是需要后续独立验证的机制假设，不能据本轮实验直接宣判可选 QA-aware 版本无效。', '',
-                  f"另有 {summary['all_random']['student_zero_trials']}/{len(random_rows)} 个随机试次的 student 得分为零，且 {summary['paired_random_seed_ordering']['outcome_ties']}/{summary['paired_random_seed_ordering']['pairs']} 个双 seed 配对得分相同，存在分数饱和/平局。当前矩阵空间也主动排除了覆盖塌缩，因此不能代表未来学习式压缩器的全部分布。下一步宜在独立数据上检验问题条件 query bridge 和更丰富、仍受约束的随机压缩族，再决定训练目标；本轮未启动这些训练。", '']
+                  'The operator probe at τ=1 is nearly uniform, a genuine numerical finding. Temperature replay shows that sharpening reads alone does not solve within-configuration ordering. V1 is still question-independent and cannot emphasize the evidence needed for a particular question. That mechanism requires independent follow-up; this round does not establish failure of the optional QA-aware variant.', '',
+                  f"Additionally {summary['all_random']['student_zero_trials']}/{len(random_rows)}  random trials have zero student scores, and  {summary['paired_random_seed_ordering']['outcome_ties']}/{summary['paired_random_seed_ordering']['pairs']}  two-seed pairs tie, indicating saturation/ties. This matrix space intentionally excludes coverage collapse and does not represent all future learned compressors. Next test a question-conditioned query bridge and richer constrained random families on independent data before choosing an objective; those training tasks are not started.", '']
     artifact_text = '\n'.join(lines).replace('../artifacts/token_proxy/'+a.label+'/', '')
     artifact_text = artifact_text.replace('('+protocol_doc+')', '(../../../docs/'+protocol_doc+')')
     (out/'RESULTS.md').write_text(artifact_text)

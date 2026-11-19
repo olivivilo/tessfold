@@ -23,7 +23,7 @@ def main():
    key=f'{ratio:g}';record=state['ratios'].setdefault(key,{'stage':'screen_running'})
    pilots=[r for r in summary['records'] if r['phase']=='v2_screen' and r['ratio']==ratio]
    if not record.get('selection_frozen'):
-    if len(pilots)!=48 or not all(r['status']=='完成' for r in pilots):continue
+    if len(pilots)!=48 or not all(r['status']=='Completed' for r in pilots):continue
     eligible=[r for r in pilots if r['gate']];record['selection_frozen']=True
     if not eligible:record['stage']='no_pilot_pass';continue
     chosen=max(eligible,key=lambda r:(r['final_score'],r['kl_drop_percent'],r['name']))

@@ -23,12 +23,12 @@ def accepted(result):
 
 def update(state,phase,**extra):
     state.update(phase=phase,updated_at=stamp(),**extra);save(STATE,state)
-    lines=['# 严格 MetaCompress 实时进度','',f'更新：{state["updated_at"]}',f'阶段：**{phase}**','',
-        '结构与 full loss 不变，主干冻结；本文件的“提交/运行”不代表达成稳定收益。',
-        '[实验结果](RESULTS.md) · [逐题作答](answers.csv) · [协议](protocol.json)','',
-        '| 名称 | 作业 | 状态 |','|---|---|---|']
+    lines=['# Strict MetaCompress: Live Progress','',f'Updated:{state["updated_at"]}',f'Stage: **{phase}**','',
+        'Architecture/full loss unchanged, backbone frozen; submission/running does not establish stable gains.',
+        '[Experimental results](RESULTS.md) · [Per-question answers](answers.csv) · [Protocol](protocol.json)','',
+        '| Name | Job | Status |','|---|---|---|']
     for name,r in state.get('jobs',{}).items():lines.append(f'| {name} | {r["job"]} | {r.get("state","submitted")} |')
-    if state.get('error'):lines+=['',f'错误：{state["error"]}']
+    if state.get('error'):lines+=['',f'Error:{state["error"]}']
     (BASE/'RUNNING_STATUS.md').write_text('\n'.join(lines)+'\n')
 
 def report():

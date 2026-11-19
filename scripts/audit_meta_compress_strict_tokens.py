@@ -151,15 +151,15 @@ def main():
         assert len({(r['id'], r['stage']) for r in records}) == len(records)
         stats = summarize(records)
         atomic_json(out/'summary.json', stats)
-        lines = ['# MetaCompress 验证集逐答案位置审计', '',
-                 '只测量原 KL 的分解，不改变原 loss、训练轨迹或生成方式。首位置/数字/EOS 分组可重叠；数字按 teacher 单 token 解码中含数字判断，不等同于完整数值实体。', '',
-                 '| stage | 任务 | QA | KL | 首 token KL | 首 token teacher-label margin | teacher 前缀下 label 命中率 | VQA | teacher |',
+        lines = ['# MetaCompress: Answer-Position Audit on the Validation Set', '',
+                 'Decompose the original KL without changing loss, trajectory, or generation. First-position/digit/EOS groups may overlap. Digit groups detect digits in individual teacher-token decoding, not complete numerical entities.', '',
+                 '| stage | Task | QA | KL | First-token KL | First-token teacher-label margin | Teacher-prefix label agreement | VQA | teacher |',
                  '|---|---|---:|---:|---:|---:|---:|---:|---:|']
         for stage, tasks in stats.items():
             for task, v in sorted(tasks.items()):
                 lines.append(f"| {stage} | {task} | {v['questions']} | {v['mean_kl']:.5f} | {v['first_kl']:.5f} | {v['first_label_margin']:.4f} | {v['forced_label_accuracy']:.3f} | {100*v['student_score']:.2f} | {100*v['teacher_score']:.2f} |")
-        lines += ['', 'margin 是 student 对 teacher 响应 token 的 logit 减去最强替代 token 的 logit；负值表示 teacher token 不是 student 的 argmax。teacher 自身 label agreement 也被保存，以披露 BF16 并行前向与逐步生成的数值差异。', '',
-                  '原始逐位置、逐题记录和更多分组均值见本目录 JSONL 与 summary.json；不将此验证集诊断当作独立确认。']
+        lines += ['', 'Margin is the student\'s logit for the teacher response token minus its strongest alternative logit. Negative values mean that the teacher token is not the student\'s argmax. Teacher self-label agreement is retained to expose BF16 differences between parallel forward evaluation and stepwise generation.', '',
+                  'Original position/question records and additional group means are in local JSONL/summary.json. Validation diagnosis is not independent confirmation.']
         (out/'RESULTS.md').write_text('\n'.join(lines)+'\n')
         atomic_json(out/'complete.json', {'questions': len(rows), 'stages': list(checkpoints), 'records': len(records)})
     barrier(world)

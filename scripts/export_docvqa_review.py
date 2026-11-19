@@ -89,36 +89,36 @@ def main():
     template = (ROOT / 'docs/docvqa_review_template.html').read_text()
     payload = json.dumps({'rows': rows, 'summary': summary}, ensure_ascii=False).replace('<', '\\u003c').replace('\u2028', '\\u2028').replace('\u2029', '\\u2029')
     (OUT / 'docvqa_review.html').write_text(template.replace('/* REVIEW_PAYLOAD */null', payload))
-    lines = ['# DocVQA 实际作答与 Gold 对照', '',
-             f'正式第二阶段最终模型；公开 validation 全部 **{len(rows):,}** 条，ANLS **{mean:.4f}%**。', '',
-             '**入口：`artifacts/full/docvqa_review.html`（全部问答，可筛选、搜索和看原图）。**', '',
-             '- 完整 TSV：`artifacts/full/docvqa_comparison.tsv`，适合表格或 IDE 查看。',
-             '- 完整 JSONL：`artifacts/full/docvqa_comparison.jsonl`，保留所有 gold、原图绝对路径和原始预测文件/行号。',
-             '- 原始结果：`artifacts/full/final_val.rank{0,1,2,3}.jsonl`，筛选 `task == "DocVQA"`。', '',
-             '再生成入口：`.venv/bin/python -m scripts.export_docvqa_review`。无需加载模型或重新推理。', '',
-             '如本地浏览器不能直接预览 HTML，可在项目根目录运行：', '', '```bash',
+    lines = ['# DocVQA Predictions and Gold Answers', '',
+             f'Final Stage-2 model; complete public validation **{len(rows):,}** records; ANLS **{mean:.4f}%**. ', '',
+             '**Entry point: `artifacts/full/docvqa_review.html`(all QA, filterable/searchable with original images).**', '',
+             '- Complete TSV: `artifacts/full/docvqa_comparison.tsv`, suitable for spreadsheet or IDE inspection.',
+             '- Complete JSONL: `artifacts/full/docvqa_comparison.jsonl`, retaining all gold, absolute original-image paths, and original prediction-file/line provenance.',
+             '- Original results: `artifacts/full/final_val.rank{0,1,2,3}.jsonl`, screening  `task == "DocVQA"`. ', '',
+             'Regeneration entry: `.venv/bin/python -m scripts.export_docvqa_review`. No model loading or new inference is required.', '',
+             'If HTML preview is unavailable, run from project root:', '', '```bash',
              '.venv/bin/python -m http.server 8765 --bind 127.0.0.1', '```', '',
-             '通过该服务器访问 `/artifacts/full/docvqa_review.html`；远程环境需使用 IDE 的端口转发。图片使用原始分辨率，预览可切换原尺寸或单独打开。', '',
-             '## 全量观察', '',
-             f'- 忽略大小写后完全匹配：{counts.get("exact", 0)}；部分得分：{counts.get("partial", 0)}；ANLS 为 0：{counts.get("zero", 0)}。',
-             '- ANLS 保留原始空格/标点、只转小写，对所有 gold 取最大得分；不截断或清理模型作答。',
-             '- 相同回答跨图像反复出现是值得检查的现象，不能据此直接断言 encoder 或 projector 出错；需要有图/空图/错图的同题对照来确认视觉依赖。', '',
-             '| 高频作答（原文） | 题数 | 不同图像数 | 完全匹配题数 |', '|---|---:|---:|---:|']
+             'Access through this server:  `/artifacts/full/docvqa_review.html`; remote use requires IDE port forwarding. Original-resolution images support actual-size view or separate opening.', '',
+             '## Full-Evaluation Observations', '',
+             f'- Case-insensitive exact matches: {counts.get("exact", 0)}; partial credit: {counts.get("partial", 0)}; zero-ANLS count: {counts.get("zero", 0)}. ',
+             '- ANLS retains original whitespace/punctuation, lowercases only, and takes the maximum across gold references; outputs are neither truncated nor cleaned.',
+             '- Repeated identical answers across images merit inspection but do not alone establish an encoder/projector bug. Compare correct, absent, and wrong images on the same questions to test visual dependence.', '',
+             '| Frequent answer (verbatim) | Questions | Distinct images | Exact-match question count |', '|---|---:|---:|---:|']
     for item in common:
         lines.append(f'| {cell(item["prediction"])} | {item["questions"]} | {item["distinct_documents"]} | {item["exact_matches"]} |')
     if (ROOT / 'docs/CONTEXT_AUDIT.md').exists():
-        lines += ['', '## 固定人名与上下文调查', '',
-                  '[调查报告](CONTEXT_AUDIT.md)：已对全部 226 道固定人名作答题做换序、清空视觉缓存和实际输入核验，'
-                  '另完成独立进程、关闭 KV cache 及换图对照。结果未发现跨问答上下文串扰，详见实测证据。']
-    lines += ['', '## 已结合原图核对的样例', '',
-              '`DocVQA_validation_1`、`_3`、`_4` 使用同一张便笺。页眉明确为 UNIVERSITY OF CALIFORNIA, SAN DIEGO；To 一栏为 Paul。模型对大学名称回答 University of California（得分 1），但城市回答 Baltimore、收件人回答 Dr. Shank（均为 0 分）。这两个错误涉及原图中的实体，不只是回答格式不一致。', '',
-              '`DocVQA_validation_0` 的 gold 为 0.28，模型为 1.0；原图 1975 年实际曲线看起来约为 0.24，gold 本身也值得人工核查。对照导出保留原始 gold，不修改标准评测。这只是个例，不能解释整体低分。', '',
-              '## 按原始数据顺序的前 60 条', '',
-              '这里包含对/错/部分得分，未按效果挑选；全部 5,349 条在上述完整文件中。原图链接指向保留完整分辨率的文件。', '',
-              '| ID | 问题 | 复现作答（原文） | 全部 Gold answers | ANLS | 原图 |', '|---|---|---|---|---:|---|']
+        lines += ['', '## Repeated-Name Answers and Context-Isolation Audit', '',
+                  '[Investigation report](CONTEXT_AUDIT.md): all 226 fixed-name questions checked under reordering/cache clearing/actual-input inspection, '
+                  'Fresh-process, KV-disabled, and image-swap controls also find no cross-question context contamination; see measurements.']
+    lines += ['', '## Examples Checked Against the Original Images', '',
+              '`DocVQA_validation_1`, `_3`, `_4` The same memo is used. Its heading states UNIVERSITY OF CALIFORNIA, SAN DIEGO, and its To field says Paul. The model answers University of California for the institution (score 1), but Baltimore for the city and Dr. Shank for the recipient (both score 0). These errors concern entities in the image, not merely response formatting.', '',
+              '`DocVQA_validation_0` has gold 0.28 and prediction 1.0; the plotted 1975 curve appears near 0.24, warranting gold review. Preserve original gold/scoring. One case does not explain overall weakness.', '',
+              '## First 60 Records in Original Data Order', '',
+              'Includes correct, incorrect, and partial-credit cases without score selection. All 5,349 records are in the full files; original-image links retain full resolution.', '',
+              '| ID | Question | Reproduced answer (verbatim) | All gold answers | ANLS | Original image |', '|---|---|---|---|---:|---|']
     for row in rows[:60]:
         path = row['image_url']
-        lines.append(f'| {row["id"]} | {cell(row["question"])} | {cell(row["prediction"])} | {cell(json.dumps(row["answers"], ensure_ascii=False))} | {row["score"]:.4f} | [原图](../artifacts/full/{path}) |')
+        lines.append(f'| {row["id"]} | {cell(row["question"])} | {cell(row["prediction"])} | {cell(json.dumps(row["answers"], ensure_ascii=False))} | {row["score"]:.4f} | [Original image](../artifacts/full/{path}) |')
     (ROOT / 'docs/DOCVQA_REVIEW.md').write_text('\n'.join(lines) + '\n')
     assert all((OUT / r['image_url']).exists() for r in rows), 'Broken image links'
     print(json.dumps(summary, ensure_ascii=False, indent=2))

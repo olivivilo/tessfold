@@ -23,16 +23,16 @@ def main():
                 clip_multiplier_median=float(np.median([r['clip_multiplier'] for r in rows])),lr_first=rows[0]['lr'],lr_last=rows[-1]['lr']))
         out.append(dict(run=label+'/'+run.name,initial_dev_kl=initial['kl'],initial_dev_macro=initial['macro'],epochs=epochs,complete=bool(load(run/'complete.json'))))
     save(BASE/'training_diagnostics.json',dict(time=now(),runs=out,scope='Observed unfinished logs may include partialepoch. Does not change hyperparameters or choose checkpoints.'))
-    doc=['# 原生8B压缩器全量训练：loss、梯度与生成分数诊断','',f'UTC：{now()}。仅统计已经写入的日志；最后一轮可能尚未结束。','',
-        '所有设置固定：基模全冻结、AdamW、weight_decay0、clip5、10%warmup后cosine到0.1LR。每步裁剪前gradient norm及实际clip multiplier来自训练日志。不能因为某步gradient norm>5就说训练已失败；应结合发生频率、裁剪比例、dev KL和实际生成分数判断。','',
-        '|运行|epoch|完整epoch dev|train KL|dev KL|dev生成macro|norm p50|norm p99|裁剪频率|clip倍率中位|','|---|---:|---|---:|---:|---:|---:|---:|---:|---:|']
-    fmt=lambda v:'未完成' if v is None else f'{v:.4f}'
+    doc=['# Native 8B Compressor Training: Loss, Gradients, and Generation Diagnostics','',f'UTC: {now()}. Only committed logs are summarized; the final epoch may be incomplete.','',
+        'All settings are fixed: frozen backbone, AdamW, weight_decay=0, clip=5, 10% warmup, and cosine decay to 0.1 LR. Per-step pre-clipping norms and actual multipliers come from training logs. A gradient norm >5 on one step does not establish failure; interpret its frequency and clipping magnitude together with development KL and generated-answer scores.','',
+        '|Run|epoch|Complete-epoch development evaluation|train KL|dev KL|Development generation macro|norm p50|norm p99|Clipping frequency|Median clipping multiplier|','|---|---:|---|---:|---:|---:|---:|---:|---:|---:|']
+    fmt=lambda v:'Incomplete' if v is None else f'{v:.4f}'
     for run in out:
         for r in run['epochs']:
             doc.append(f'|{run["run"]}|{r["epoch"]}|{r["epoch_dev_complete"]}|{r["train_kl"]:.4f}|{fmt(r["dev_kl"])}|{fmt(r["dev_macro"])}|{r["gradient_q50_q90_q99_max"][0]:.3f}|{r["gradient_q50_q90_q99_max"][2]:.3f}|{r["clip_fraction"]:.1%}|{r["clip_multiplier_median"]:.3f}|')
-    doc+=['','KL和生成分数可能方向不一致：KL度量teacher回答前缀上完整词表的平均分布差异，生成指标取决于greedy路径和任务离散计分。分区又包含detached score的离散决策，输入或参数轻微变化会改变切分，训练不等于完整可微分区学习。StableColumn50%固定detail分区正是针对这类不稳定性的显式变体；其收益只能由独立评测确认。','',
-        '因此每轮同时评估KL和生成宏分，按预设合格门槛及dev分数选择，保留所有epoch。56题dev规模很小，单个任务只有8题；其波动无法直接代表23565题正式趋势。固定512图/2404题初始对照与全量正式表用于独立验证泛化，不用于追选模型。','',
-        '此文档是观测诊断，没有中途修改optimizer、scheduler、batch或clip，也没有依据测试分数调参。']
+    doc+=['','KL and generation scores can move in different directions. KL measures average full-vocabulary discrepancy under teacher response prefixes, whereas generation depends on the greedy trajectory and discrete task scoring. Partitioning includes detached-score discrete decisions; small input or parameter changes can change a split. Training is not fully differentiable partition learning. StableColumn50% explicitly fixes detail-based partition allocation to address this instability; any benefit still requires independent evaluation.','',
+        'Evaluate KL and generation macro each epoch, select by prespecified eligibility/development score, and retain all epochs. A 56-question development set (8/task) cannot predict full 23,565-question trends reliably. Fixed 512-image/2,404-QA initial controls and full tests assess generalization, not reselection.','',
+        'This is observational diagnosis: optimizer, scheduler, batch, and clip are unchanged during training, and tests do not tune parameters.']
     (ROOT/'docs/TESSFOLD_8B_TRAINING_DIAGNOSTICS.md').write_text('\n'.join(doc)+'\n')
     print(json.dumps(dict(runs=len(out),report='docs/TESSFOLD_8B_TRAINING_DIAGNOSTICS.md')))
 

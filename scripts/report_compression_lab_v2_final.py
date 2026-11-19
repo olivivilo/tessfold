@@ -81,28 +81,28 @@ def main():
     timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat()
     audit={'updated_utc':timestamp,'budgets':audits,'teacher_consistent_across_variants_and_completed_budgets':True}
     (BASE/'infrastructure/recovery_20261106/final_artifact_audit.json').write_text(json.dumps(audit,indent=2)+'\n')
-    doc=['# 新压缩生成器：固定终点完整训练与正式评测','',f'更新 UTC：{timestamp}。已完成正式评测预算：{len(results)}/{len(budgets)}。',
-         '', '**入口**：`bash scripts/run_compression_lab_v2.sh status`；恢复：`bash scripts/run_compression_lab_v2.sh resume`；重新核对并生成本报告：`bash scripts/run_compression_lab_v2.sh final-report`。',
-         '', '官方 MonkeyOCRv2-B-Und encoder、merger、Qwen3-1.7B 全冻结，只训练P生成器。10%与50%使用问题条件四叉树，25%使用全局top-k，均在merger前压缩768维encoder输出，学生输入为merger(PH)。仅优化共同teacher前缀上的全词表KL；不加行熵或列塌缩正则。',
-         '', '各预算的完整训练设置均为：原20,000 QA / 16,731图像，从头训练4epochs、2,500updates；AdamW LR3e-4、batch32、clip1、10%warmup及cosine。固定epoch4，不按中间验证或正式分数追选。正式集合为原有23,565QA、八任务，独立greedy生成上限256；每题保留六种变体结果，没有跨随机压缩或seed取均值。下表仅填写完成标志和完整性审计通过的正式结果。',
-         '', '下表为各任务原生分数的等权宏平均（百分制），不是官方统一榜单。DeepForm/KLC为逐字段exact，DT-VQA沿用既有scorer，不能将这些分数冒充论文的官方文档级F1。',
-         '', '|保留率|teacher|initial|trained|mean|selection|cell mean|cell selection|',
+    doc=['# New Compression Generators: Fixed-Endpoint Full Training and Formal Evaluation','',f'Updated (UTC): {timestamp}. Completed formal-evaluation budgets: {len(results)}/{len(budgets)}. ',
+         '', '**Entry point**: `bash scripts/run_compression_lab_v2.sh status`; resume: `bash scripts/run_compression_lab_v2.sh resume`; recheck/rebuild report: `bash scripts/run_compression_lab_v2.sh final-report`. ',
+         '', 'The official MonkeyOCRv2-B-Und encoder, merger, and Qwen3-1.7B are frozen; only P is trained. The 10%/50% variants use the question-conditioned tree and 25% uses global top-k, all compressing 768-dimensional encoder outputs before the merger, with student input merger(PH). Optimize only shared-teacher-prefix full-vocabulary KL, without row entropy or column-collapse regularization.',
+         '', 'Full training at each budget uses the original 20,000 QA / 16,731 images, fresh initialization, 4 epochs / 2,500 updates, AdamW LR=3e-4, batch=32, clip=1, and 10% warmup followed by cosine decay. Epoch 4 is fixed; intermediate development or formal scores do not retrospectively select models. Formal evaluation uses the original eight-task 23,565-QA set with independent greedy generation capped at 256, retaining six variants per question without averaging compression trials or seeds. Only completed, coverage-audited results appear below.',
+         '', 'Scores below are equally weighted native-task macros (percentages), not a unified official leaderboard. DeepForm/KLC use field exact match and DT-VQA its retained scorer; they are not the paper’s document-level F1.',
+         '', '|Retention fraction|teacher|initial|trained|mean|selection|cell mean|cell selection|',
          '|---|---:|---:|---:|---:|---:|---:|---:|']
     for ratio in budgets:
         if ratio not in results:
-            doc.append(f'|{float(ratio):.0%}|—|—|未完成正式评测|—|—|—|—|');continue
+            doc.append(f'|{float(ratio):.0%}|—|—|Formal evaluation incomplete|—|—|—|—|');continue
         _,s=results[ratio];doc.append(f'|{float(ratio):.0%}|'+ '|'.join(f'{s["macro"][v]:.2f}' for v in ['teacher',*VARIANTS])+'|')
     if {'0.1','0.25'}<=set(results):
-        doc+=['', '10%与25%均相对各自初始化和本位置的固定控制提高，但仍明显低于未压缩teacher，不能视为已恢复原模型性能。10%与25%采用不同生成器，二者分差同时包含预算和结构差异，不能归因于token预算单一因素。',
-              '', '25%全训练KL在epoch1之后上升，小验证集生成分在epoch2后回落；10%验证KL下降，但逐epoch生成分不单调。固定epoch4照常全量评测，没有根据这些波动或测试分数改选较早权重。']
+        doc+=['', 'Both 10% and 25% improve over their initial models and same-position controls but remain well below teacher, so original performance is not recovered. Their generators differ as well as budgets; the gap is not a token-budget-only effect.',
+              '', 'At 25%, full-training KL rises after epoch 1 and small-set generation falls after epoch 2. At 10%, validation KL falls but generation is nonmonotonic. Full evaluation still uses fixed epoch 4; neither these fluctuations nor tests select an earlier checkpoint.']
     if '0.5' in budgets:
-        doc+=['', '50%为用户明确授权的后续扩展：原112图/209QA独立确认中，seed20261105增益CI跨零，原“两seed都通过”门槛仍记为失败。本次沿用已经选定的问题条件四叉树、原第一seed20261105，从头训练完整20k，不从较好seed或小规模checkpoint继续训练。登记见[50%扩展协议](COMPRESSION_GENERATOR_V2_KEEP50_FULL.md)及[原始授权与配置哈希](../artifacts/compression_lab_v2/infrastructure/extension_keep50_20261106/registration.json)。']
+        doc+=['', 'The 50% run is a separately authorized extension: on the original independent 112-image/209-QA confirmation set, the gain CI for seed 20261105 crosses zero, so the original requirement that both seeds pass remains failed. This extension retains the selected question-conditioned tree family and original first seed 20261105, with fresh full-20k training rather than continuing the better seed or a small-run checkpoint. See the [50% extension protocol](COMPRESSION_GENERATOR_V2_KEEP50_FULL.md)and [Original authorization and configuration hashes](../artifacts/compression_lab_v2/infrastructure/extension_keep50_20261106/registration.json). ']
     for ratio,(cfg,s) in results.items():
         m=s['macro'];ci=s['paired_trained_vs_initial']['cluster_bootstrap_95ci_points']
         best=max(m[v] for v in VARIANTS[2:]);directory='../'+cfg['output'];rel=directory+'/benchmark'
-        doc+=['',f'## 保留{float(ratio):.0%} token','',
-              f'trained相对initial提高{s["paired_trained_vs_initial"]["gain_points"]:.2f}点，按图像聚类bootstrap95%CI [{ci[0]:.2f}, {ci[1]:.2f}]；相对本位置最强固定控制为{m["trained"]-best:+.2f}点，相对teacher为{m["trained"]-m["teacher"]:+.2f}点，分数保留率{100*m["trained"]/m["teacher"]:.2f}%。后者不是速度保留率。',
-              '', '|epoch|全训练batch平均KL|固定训练审计KL|验证KL|小筛选集生成分|',
+        doc+=['',f'## Retained Components{float(ratio):.0%} token','',
+              f'Trained gain over initial: {s["paired_trained_vs_initial"]["gain_points"]:.2f} points; image-cluster bootstrap 95% CI [{ci[0]:.2f}, {ci[1]:.2f}]; relative to the strongest same-position control: {m["trained"]-best:+.2f} points; relative to teacher {m["trained"]-m["teacher"]:+.2f} points; score retention {100*m["trained"]/m["teacher"]:.2f}%. The latter is not a speed-retention fraction.',
+              '', '|epoch|Full-training batch-mean KL|Fixed training-audit KL|Development KL|Small selection-set generation score|',
               '|---|---:|---:|---:|---:|']
         by_epoch=collections.defaultdict(list);run=ROOT/cfg['output'];steps=[]
         for r in read(run/'training.jsonl'):
@@ -113,19 +113,19 @@ def main():
             val=json.loads((run/f'validation.epoch{epoch}.summary.json').read_text())
             train=json.loads((run/f'train_audit.epoch{epoch}.summary.json').read_text())
             doc.append(f'|{epoch}|{sum(values)/len(values):.5f}|{train["kl"]:.5f}|{val["kl"]:.5f}|{val["student_macro"]:.2f}|')
-        doc+=['', '全训练均值覆盖该epoch全部20,000QA；固定审计/验证为另列的小集合，绝对数值和加权口径不同。小筛选集为56QA、生成上限64 token；正式评测为23,565QA、上限256 token，样本与生成设置不同，不能把两者直接当作训练前后对照。小筛选集不用于追选epoch。',
-              '', '|任务|QA|teacher|initial|trained|mean|selection|cell mean|cell selection|',
+        doc+=['', 'Full-training means cover all 20,000 QA in each epoch. Separate fixed audit/validation subsets have different sizes and aggregation weights; absolute values are not directly comparable. Screening uses 56 QA with a 64-token cap; formal evaluation uses 23,565 QA with cap=256. These are not a direct before/after comparison. The small screening set is not used to retrospectively select an epoch.',
+              '', '|Task|QA|teacher|initial|trained|mean|selection|cell mean|cell selection|',
               '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
         counts=collections.Counter(r['task'] for r in rows)
         for task,values in sorted(s['tasks'].items()):doc.append(f'|{task}|{counts[task]}|'+ '|'.join(f'{values[v]:.2f}' for v in ['teacher',*VARIANTS])+'|')
-        doc+=['',f'[逐题CSV]({rel}/answers.csv) · [图像/gold/teacher/initial/trained浏览器]({rel}/review.html) · [机器统计]({rel}/summary.json) · [固定epoch4权重]({directory}/epoch4.pt)。',
-              '',f'[完整训练/固定训练审计/验证 KL 曲线](../artifacts/compression_lab_v2/plots/loss_v2_full_20k_pre-merger_keep{float(ratio):g}.pdf) · [逐epoch生成分数曲线](../artifacts/compression_lab_v2/plots/score_v2_full_20k_pre-merger_keep{float(ratio):g}.pdf)。全训练batch均值与固定审计/验证集合不同，分别观察趋势。',
-              '',f'达到256-token上限的题数：`{json.dumps(s["student_token_limit_counts"],ensure_ascii=False)}`；teacher为{s["teacher_token_limit_count"]}题，全部计入评分。']
-    doc+=['','## 恢复与复核','',
-          '过期Slurm作业号通过查询当前用户队列处理，阶段转换先落盘；完整训练/评测最多自动恢复3次。缓存ENOENT最多12次刷新/退避，先导入Ascend再安装torch.load补丁，避免后端覆盖；并发写入EEXIST只接受逐tensor及metadata相同的已提交缓存。真实缺失和内容不一致仍报错。',
-          '', '10%旧作业463步没有提交checkpoint，保留旧日志后按原seed/样本顺序重放。增加每25步保存latest.pt；一次补丁部署从step150恢复成功，初始权重逐tensor一致。首个重放更新与原日志一致，后续NPU数值轨迹非逐位一致，未宣称完全确定性。25%完成权重未重训。',
-          '', '评测并行度只影响独立问题的分配。若重分片，旧manifest及逐题记录先归档，所有已提交作答原样迁移并核对canonical记录hash；不根据作答分数重跑或选模型。具体硬件记录见恢复目录中的计划与重分片audit。',
-          '', '[完整实验协议、逐epoch曲线与确认结果](COMPRESSION_GENERATOR_V2_EXPERIMENTS.md) · [生成器结构](COMPRESSION_GENERATOR_V2_DESIGNS.md) · [恢复记录](../artifacts/compression_lab_v2/infrastructure/recovery_20261106/recovery.json) · [最终逐题完整性审计](../artifacts/compression_lab_v2/infrastructure/recovery_20261106/final_artifact_audit.json)。']
+        doc+=['',f'[Per-question CSV]({rel}/answers.csv) · [Image/gold/teacher/initial/trained viewer]({rel}/review.html) · [Machine-readable statistics]({rel}/summary.json) · [Fixed epoch-4 weights]({directory}/epoch4.pt). ',
+              '',f'[Full-training / fixed-audit / validation KL curves](../artifacts/compression_lab_v2/plots/loss_v2_full_20k_pre-merger_keep{float(ratio):g}.pdf) · [Per-epoch generation curves](../artifacts/compression_lab_v2/plots/score_v2_full_20k_pre-merger_keep{float(ratio):g}.pdf). Full-training batch means and fixed audit/validation sets differ; inspect their trends separately.',
+              '',f'Questions reaching cap=256: `{json.dumps(s["student_token_limit_counts"],ensure_ascii=False)}`; teacher: {s["teacher_token_limit_count"]} questions, all included in scoring.']
+    doc+=['','## Recovery and Verification','',
+          'Resolve stale Slurm job IDs against the current user\'s live queue; persist stage transitions first. Full training/evaluation allow at most 3 automatic recoveries. Cache ENOENT permits at most 12 refresh/backoff attempts. Install torch.load patches after importing Ascend so the backend cannot replace them; concurrent EEXIST accepts only committed caches with identical tensors and metadata. Genuine missing files or mismatched content still fail.',
+          '', 'The earlier 10% job logged 463 steps without a checkpoint. After preserving its logs, replay uses the original seed and sample order, with latest.pt saved every 25 steps. Recovery from step 150 succeeded; initial tensors match exactly. The first replayed update matches the original log, but subsequent NPU trajectories are not bit-exact; complete determinism is not claimed. Completed 25% weights were not retrained.',
+          '', 'Evaluation parallelism only allocates independent questions. Before resharding, archive old manifests/records; migrate committed answers unchanged and verify canonical hashes. No score-based reruns or selection. Hardware plans/audits remain in recovery directories.',
+          '', '[Complete protocol, per-epoch curves, and confirmation](COMPRESSION_GENERATOR_V2_EXPERIMENTS.md) · [Generator architecture](COMPRESSION_GENERATOR_V2_DESIGNS.md) · [Recovery records](../artifacts/compression_lab_v2/infrastructure/recovery_20261106/recovery.json) · [Final per-question completeness audit](../artifacts/compression_lab_v2/infrastructure/recovery_20261106/final_artifact_audit.json). ']
     target=ROOT/'docs/COMPRESSION_GENERATOR_V2_FINAL_RESULTS.md';tmp=target.with_suffix('.tmp');tmp.write_text('\n'.join(doc)+'\n');tmp.replace(target)
     print(json.dumps({'completed_budgets':list(results),'audit':audit},ensure_ascii=False))
 

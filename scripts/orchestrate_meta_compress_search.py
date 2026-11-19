@@ -32,13 +32,13 @@ def report(cohort='search'):
 def update(state,phase,**extra):
     if phase not in {'error','no_verified_candidate'}:state.pop('error',None)
     state.update(phase=phase,updated_at=stamp(),**extra);save(STATE,state)
-    lines=['# 调参和重训实时状态','',f"更新时间：{state['updated_at']}",'',f'当前阶段：**{phase}**','',
-           '此文件由 Slurm controller 写入；“已提交”不代表训练或评测已完成。','',
-           '[逐阶段 search 结果](RESULTS.search.md) · [confirm 结果](RESULTS.confirm.md)','',
-           '## 调度记录','', '| key | job ID |','|---|---|']
+    lines=['# Hyperparameter Search and Retraining: Live Status','',f"Updated:{state['updated_at']}",'',f'Current stage: **{phase}**','',
+           'Written by the Slurm controller; submitted does not mean training/evaluation completed.','',
+           '[Stagewise search results](RESULTS.search.md) · [Confirmation results](RESULTS.confirm.md)','',
+           '## Job Submissions','', '| key | job ID |','|---|---|']
     for key,value in state.get('jobs',{}).items():lines.append(f'| {key} | {value} |')
-    if state.get('selection'):lines+=['','## 选择记录','', '```json',json.dumps(state['selection'],ensure_ascii=False,indent=2),'```']
-    if state.get('error'):lines+=['',f"错误：{state['error']}"]
+    if state.get('selection'):lines+=['','## Selection Records','', '```json',json.dumps(state['selection'],ensure_ascii=False,indent=2),'```']
+    if state.get('error'):lines+=['',f"Error:{state['error']}"]
     (BASE/'RUNNING_STATUS.md').write_text('\n'.join(lines)+'\n')
 
 

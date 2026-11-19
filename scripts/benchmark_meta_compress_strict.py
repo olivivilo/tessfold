@@ -68,16 +68,16 @@ def final_report(out,rows,cfg):
             'teacher_score','student_score','prediction','entropy','collapse','total','tokens','compressed_tokens','hit_token_limit']
     with (out/'answers.csv').open('w') as f:
         w=csv.DictWriter(f,fields,extrasaction='ignore');w.writeheader();w.writerows(records)
-    lines=['# 严格 MetaCompress：完整训练后的独立全量评测','',
-        f'实际完成 {len(rows):,} QA，{len(records):,} 条压缩变体记录。未压缩 teacher、初始生成器、训练后生成器和 mean pooling 全部在本轮 NPU BF16 上重新独立生成，cap=256。',
-        '评测只在家族/epoch 固定之后运行，不用本表选择 adapter、超参数或 checkpoint。训练/调参的 cap=64，与本表不同。','',
-        'DeepForm/KLC 为逐字段 exact，DT-VQA 延用既有 scorer；不同任务宏平均不是新的官方统一榜单分数。','',
-        '| 任务 | QA | teacher | 初始 | 训练后 | mean | 训练增益 |',
+    lines=['# Strict MetaCompress: Independent Full Evaluation After Full Training','',
+        f'Actually completed  {len(rows):,} QA, {len(records):,}  compression-variant records. Uncompressed teacher, initial/trained generator, and mean pooling all independently regenerate on current NPU BF16, cap=256.',
+        'Evaluate only after family/epoch are fixed; this table selects no adapter, hyperparameter, or checkpoint. Training/tuning cap=64 differs from this table.','',
+        'DeepForm/KLC use field exact match; DT-VQA retains its existing scorer. Cross-task macros are not a new unified official leaderboard.','',
+        '| Task | QA | teacher | Initial | Trained | mean | Training gain |',
         '|---|---:|---:|---:|---:|---:|---:|']
     for t,s in stats.items():lines.append(f"| {t} | {s['trained']['n']} | {s['teacher']:.2f} | {s['initial']['score']:.2f} | {s['trained']['score']:.2f} | {s['mean']['score']:.2f} | {s['trained']['score']-s['initial']['score']:+.2f} |")
-    lines+=['',f"八任务宏平均：teacher **{macro['teacher']:.2f}**，初始 **{macro['initial']:.2f}**，训练后 **{macro['trained']:.2f}**，mean **{macro['mean']:.2f}**。",
-        '',f"训练相对同预算初始化的配对增益：{uncertainty['gain_points']:+.3f} 点，图像聚类 bootstrap 95% CI：{uncertainty['cluster_bootstrap_95ci_points']}。",'',
-        '[训练与验证实时结果](METACOMPRESS_STRICT_RESULTS.md) · [逐题作答](../'+str((out/'answers.csv').relative_to(ROOT))+') · [机器统计](../'+str((out/'summary.json').relative_to(ROOT))+')']
+    lines+=['',f"Eight-task macro: teacher **{macro['teacher']:.2f}**, initial **{macro['initial']:.2f}**, trained **{macro['trained']:.2f}**, mean **{macro['mean']:.2f}**. ",
+        '',f"Paired gain over same-budget initialization: {uncertainty['gain_points']:+.3f}  points; image-cluster bootstrap 95% CI: {uncertainty['cluster_bootstrap_95ci_points']}. ",'',
+        '[Live training/validation results](METACOMPRESS_STRICT_RESULTS.md) · [Per-question answers](../'+str((out/'answers.csv').relative_to(ROOT))+') · [Machine-readable statistics](../'+str((out/'summary.json').relative_to(ROOT))+')']
     (ROOT/'docs/METACOMPRESS_STRICT_FINAL_RESULTS.md').write_text('\n'.join(lines)+'\n')
 
 def main():

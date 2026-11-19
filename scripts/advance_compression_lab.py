@@ -29,7 +29,7 @@ def main():
    key=f'{ratio:g}';rr=[r for r in summary['records'] if r['ratio']==ratio and r['phase'] in ['initial_screen','higher_update_budget','pre_merger_ablation']]
    record=state['ratios'].setdefault(key,{})
    if not record.get('selection_frozen'):
-    if not all(r['status']=='完成' for r in rr):continue
+    if not all(r['status']=='Completed' for r in rr):continue
     eligible=[r for r in rr if r['screen_gate']]
     record['selection_frozen']=True
     if not eligible:record['stage']='no_pilot_pass';continue

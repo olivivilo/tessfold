@@ -106,11 +106,11 @@ def main():
         if run.name=='smoke' or not (run/'manifest.json').exists():continue
         runs.append(collect(run,a.cohort))
     (BASE/f'summary.{a.cohort}.json').write_text(json.dumps(runs,ensure_ascii=False,indent=2,allow_nan=False))
-    lines=['# 多图调参逐阶段实测','','score 为七任务原生分数宏平均（百分制）；某个 epoch 的评测完整不代表原定全部训练完成。','',
-           '| run | 实际更新数 | 原定全部训练完成 | 提前停止 |','|---|---:|---|---|']
-    for r in runs:lines.append(f"| {r['name']} | {r.get('updates_completed',0)} | {r['training_complete']} | {'是，见 early_stop.json' if r.get('early_stop') else '否'} |")
-    lines+=['','## 逐阶段验证','',
-           '| run | stage | n | 完整 | score | teacher | KL | H | C/m | Δscore | 95% CI | 初始改善 / 胜过 mean |',
+    lines=['# Multi-Image Hyperparameter Search: Stagewise Measurements','','Score is the seven-task native-metric macro (percentage). Completing one epoch’s evaluation does not imply all planned training is complete.','',
+           '| run | Actual updates | All planned training completed | Early stopping |','|---|---:|---|---|']
+    for r in runs:lines.append(f"| {r['name']} | {r.get('updates_completed',0)} | {r['training_complete']} | {'Yes; see early_stop.json' if r.get('early_stop') else 'No'} |")
+    lines+=['','## Stagewise Validation','',
+           '| run | stage | n | Complete | score | teacher | KL | H | C/m | Δscore | 95% CI | Improvement over initial / beats mean |',
            '|---|---|---:|---|---:|---:|---:|---:|---:|---:|---|---|']
     for r in runs:
         for key,s in sorted(r['stages'].items()):
@@ -118,9 +118,9 @@ def main():
             lines.append(f"| {r['name']} | {key} | {s['n']} | {s['complete']} | {s['score']:.3f} | {s['teacher']:.3f} | {s['prediction']:.5f} | {s['entropy']:.3f} | {s['column_mass_fraction']:.4f} | {pair.get('gain_points',0):+.3f} | {str([round(x,3) for x in ci]) if ci else '—'} | {s.get('screen_pass','—')} / {s.get('practical_pass','—')} |")
         if r.get('matched_mean'):
             s=r['matched_mean'];lines.append(f"| {r['name']} | matched mean | {s['n']} | {s['complete']} | {s['score']:.3f} | {s['teacher']:.3f} | {s['prediction']:.5f} | {s['entropy']:.3f} | {s['column_mass_fraction']:.4f} | — | — | — |")
-    lines+=['','## 补充答案正确性核查','',
-        '严格 exact 仅忽略大小写与空白，跨任务不等同于各自的正式 scorer；只作审查，不用于选择。teacher>0 / 满分分组是子集微平均，不能与总体任务宏平均混比。','',
-        '| run | stage | 严格 exact 宏均分 | teacher>0 的 n / student 分数 | teacher满分的 n / student 分数 |',
+    lines+=['','## Additional Answer-Correctness Checks','',
+        'Strict exact match ignores only case/whitespace and is not equivalent to all task-native scorers; audit only, not selection. Teacher-positive/perfect subsets are micro-averaged and not directly comparable to overall task macros.','',
+        '| run | stage | Strict exact-match macro | Teacher>0: n / student score | Perfect-teacher subset: n / student score |',
         '|---|---|---:|---|---|']
     for r in runs:
         for key,s in sorted(r['stages'].items()):

@@ -59,17 +59,17 @@ def export_review():
            for label in ('baseline', 'finetuned')} if shank else {})}
     (OUT / 'docvqa_comparison_summary.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False))
     payload = json.dumps(records, ensure_ascii=False).replace('<', '\\u003c')
-    html = '''<!doctype html><html lang="zh"><meta charset="utf-8"><title>官方 Und DocVQA 作答对比</title>
+    html = '''<!doctype html><html lang="en"><meta charset="utf-8"><title>Official UND DocVQA answer comparison</title>
 <style>body{font:16px system-ui;margin:24px;background:#f7f8fa;color:#18222f}button,input,select{font:inherit;padding:7px;margin:4px}main{display:grid;grid-template-columns:48% 1fr;gap:24px}img{width:100%;background:white}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:white;padding:16px;border-radius:8px}label{display:block;font-weight:bold}small{color:#566}h1{font-size:24px}@media(max-width:800px){main{display:block}}</style>
-<h1>DocVQA：gold／官方基线／微调／旧自建模型</h1>
-<p>完整 validation 5,349 题。分数为 0–1 ANLS；默认从退化最多的题开始。图片路径相对项目根目录。</p>
-<input id="search" placeholder="搜索问题、gold、作答、ID" size="42">
-<select id="filter"><option value="all">全部</option><option value="regressed">微调退化</option><option value="improved">微调提升</option><option value="wrong">官方基线未全对</option><option value="shank">旧模型固定 Shank 组</option></select>
-<button id="prev">上一题</button><button id="next">下一题</button><span id="count"></span>
+<h1>DocVQA: gold / official baseline / fine-tuned / earlier custom model</h1>
+<p>Full validation: 5,349 questions. ANLS in [0,1]; default ordering starts with largest regressions. Image paths are relative to project root.</p>
+<input id="search" placeholder="Search questions, gold answers, predictions, or IDs" size="42">
+<select id="filter"><option value="all">All</option><option value="regressed">Degradation after fine-tuning</option><option value="improved">Improvement after fine-tuning</option><option value="wrong">Official baseline not perfect</option><option value="shank">Earlier model’s repeated-Shank subset</option></select>
+<button id="prev">Previous question</button><button id="next">Next question</button><span id="count"></span>
 <main><div><a id="imageLink" target="_blank"><img id="image"></a></div><div id="detail"></div></main>
 <script>const rows=__DATA__;let filtered=rows,index=0;
-function render(){document.getElementById('count').textContent=filtered.length?`${index+1} / ${filtered.length}`:'无匹配';const detail=document.getElementById('detail');detail.replaceChildren();if(!filtered.length)return;const r=filtered[index];document.getElementById('image').src=r.review_image;document.getElementById('imageLink').href=r.review_image;
-for(const [label,value] of [['ID',r.id],['问题',r.question],['Gold answers',JSON.stringify(r.gold,null,2)],[`官方基线 · ANLS ${r.baseline_anls.toFixed(4)}`,r.baseline],[`微调 · ANLS ${r.finetuned_anls.toFixed(4)} · Δ ${r.delta.toFixed(4)}`,r.finetuned],['旧自建模型',r.old_prediction]]){const l=document.createElement('label');l.textContent=label;const p=document.createElement('pre');p.textContent=value;detail.append(l,p)}}
+function render(){document.getElementById('count').textContent=filtered.length?`${index+1} / ${filtered.length}`:'No match';const detail=document.getElementById('detail');detail.replaceChildren();if(!filtered.length)return;const r=filtered[index];document.getElementById('image').src=r.review_image;document.getElementById('imageLink').href=r.review_image;
+for(const [label,value] of [['ID',r.id],['Question',r.question],['Gold answers',JSON.stringify(r.gold,null,2)],[`Official baseline · ANLS ${r.baseline_anls.toFixed(4)}`,r.baseline],[`Fine-tuned · ANLS ${r.finetuned_anls.toFixed(4)} · Δ ${r.delta.toFixed(4)}`,r.finetuned],['Earlier custom model',r.old_prediction]]){const l=document.createElement('label');l.textContent=label;const p=document.createElement('pre');p.textContent=value;detail.append(l,p)}}
 function apply(){const q=document.getElementById('search').value.toLowerCase(),f=document.getElementById('filter').value;filtered=rows.filter(r=>(f==='all'||f==='regressed'&&r.delta<0||f==='improved'&&r.delta>0||f==='wrong'&&r.baseline_anls<1||f==='shank'&&r.old_prediction==='Dr. Robert E. Shank')&&JSON.stringify(r).toLowerCase().includes(q));index=0;render()}
 document.getElementById('search').oninput=apply;document.getElementById('filter').onchange=apply;document.getElementById('prev').onclick=()=>{if(filtered.length)index=(index+filtered.length-1)%filtered.length;render()};document.getElementById('next').onclick=()=>{if(filtered.length)index=(index+1)%filtered.length;render()};render();</script></html>'''
     (OUT / 'docvqa_comparison.html').write_text(html.replace('__DATA__', payload))
@@ -142,48 +142,48 @@ def main():
     if interim.exists():
         summary['intermediate_step100_generation'] = json.loads(interim.read_text())
     (OUT / 'training_summary.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False))
-    lines = ['# 官方 Und 微调：训练与作答检查', '',
-             '入口：`bash scripts/run_official_und.sh`；总成绩：[OFFICIAL_UND_RESULTS.md](OFFICIAL_UND_RESULTS.md)。', '',
-             f"实际完成 **{losses['global_step']} optimizer steps / {losses['epoch']:.4f} epoch**；"
-             '只冻结官方 vision encoder，LLM 与 MLP 使用 LoRA。', '',
-             f"权重头和 adapter 检查：encoder **{parameters['encoder_parameters']:,}** 参数，"
-             f"LoRA **{parameters['adapter_parameters']:,}** 参数；encoder 内无 LoRA 张量，"
-             '视觉侧仅 MLP merger 有 adapter。', '',
-             f"初始 validation NLL：**{losses['initial_eval_loss']:.6f}**；最低：**{losses['best_eval_loss']:.6f}**；"
-             f"最后：**{losses['last_eval_loss']:.6f}**。", '',
-             f"训练前/后 20 steps 的 batch loss 均值：{losses['first_20_steps_mean_train_loss']:.6f} → "
-             f"{losses['last_20_steps_mean_train_loss']:.6f}。不同 batch 的训练 loss 存在波动，不能要求每步严格下降。", '',
-             '![真实 train/eval loss](../artifacts/official_und/loss_audit/training_loss.png)', '',
-             '只有一个实际 epoch，图展示 epoch 内的多次验证，没有补造逐 epoch 数据。'
-             '训练线为变化中的 batch 平均，验证线来自固定 256 题，不能把两者的差值直接作为严格泛化差距。', '',
+    lines = ['# Official UND Fine-Tuning: Training and Answer Checks', '',
+             'Entry point: `bash scripts/run_official_und.sh`; overall results: [OFFICIAL_UND_RESULTS.md](OFFICIAL_UND_RESULTS.md). ', '',
+             f"Actually completed **{losses['global_step']} optimizer steps / {losses['epoch']:.4f} epoch**; "
+             'Freeze official visual encoder only; use LoRA in LLM/MLP.', '',
+             f"Weight-head/adapter checks: encoder **{parameters['encoder_parameters']:,}** parameters, "
+             f"LoRA **{parameters['adapter_parameters']:,}** parameters; no LoRA tensors in the encoder, "
+             'Only the visual MLP merger has adapters.', '',
+             f"Initial validation NLL: **{losses['initial_eval_loss']:.6f}**; minimum: **{losses['best_eval_loss']:.6f}**; "
+             f"Final: **{losses['last_eval_loss']:.6f}**. ", '',
+             f"Mean batch loss over first/last 20 steps: {losses['first_20_steps_mean_train_loss']:.6f} → "
+             f"{losses['last_20_steps_mean_train_loss']:.6f}. Batch losses fluctuate; strict decrease at every step is not expected.", '',
+             '![Measured train/eval loss](../artifacts/official_und/loss_audit/training_loss.png)', '',
+             'Only one real epoch; curves show within-epoch evaluations, not invented multi-epoch history. '
+             'Training curves average changing batches; validation uses 256 fixed questions. Their separation is not a rigorously matched generalization gap.', '',
              '- [Loss CSV](../artifacts/official_und/loss_audit/loss_history.csv)',
              '- [Loss PDF](../artifacts/official_und/loss_audit/training_loss.pdf)',
-             '- [完整机器可读训练汇总](../artifacts/official_und/training_summary.json)', '',
-             '## DocVQA 逐题作答', '',
-             '- **[交互式图片／gold／官方基线／微调／旧模型对比](../artifacts/official_und/docvqa_comparison.html)**',
+             '- [Complete machine-readable training summary](../artifacts/official_und/training_summary.json)', '',
+             '## Per-Question DocVQA Answers', '',
+             '- **[Interactive image / gold / official baseline / fine-tuned / earlier-model comparison](../artifacts/official_und/docvqa_comparison.html)**',
              '- [CSV](../artifacts/official_und/docvqa_comparison.csv) · [JSONL](../artifacts/official_und/docvqa_comparison.jsonl)', '',
-             f"同一 5,349 题：微调后 {review['improved']} 题 ANLS 提升，{review['regressed']} 题下降，"
-             f"{review['unchanged_score']} 题分数不变。", '',
-             f"完整 DocVQA ANLS：官方基线 {review['baseline']['anls_percent']:.4f}；微调 {review['finetuned']['anls_percent']:.4f}。", '',
-             f"精确回答 `Dr. Robert E. Shank` 的题数：官方基线 {review['baseline']['shank_predictions']}，"
-             f"微调 {review['finetuned']['shank_predictions']}；其中非满分回答分别为 "
-             f"{review['baseline']['incorrect_shank_predictions']} / {review['finetuned']['incorrect_shank_predictions']}。", '',
-             '旧模型该回答组的变化见 `docvqa_comparison_summary.json` 的 `old_shank_group`；'
-             'HTML 可筛选“旧模型固定 Shank 组”。', '',
-             '## 模型选择与重载', '',
-             f"按最低 validation NLL 选择候选：`{adapter.relative_to(ROOT)}`。"
-             f"按固定 256 题生成分数选择最终模型：**{selection['selected']}**。", '',
-             '微调评测为另起进程，从官方原权重＋磁盘 adapter 重新加载后的真实生成。'
-             'adapter 哈希保存在 training_summary.json。测试分数不参与候选检查点与最终模型选择。', '',
-             '本实验说明官方成品模型在本地协议下的表现及继续微调效果，不能单凭它反推出此前从零对齐失败的唯一原因。']
+             f"Same 5,349 questions: after fine-tuning  {review['improved']}  questions improve ANLS, {review['regressed']}  questions worsen, "
+             f"{review['unchanged_score']}  questions unchanged.", '',
+             f"Full DocVQA ANLS: official baseline  {review['baseline']['anls_percent']:.4f}; fine-tuning  {review['finetuned']['anls_percent']:.4f}. ", '',
+             f"Exact answer `Dr. Robert E. Shank`  questions: official baseline  {review['baseline']['shank_predictions']}, "
+             f"Fine-tuning {review['finetuned']['shank_predictions']}; nonperfect answers respectively  "
+             f"{review['baseline']['incorrect_shank_predictions']} / {review['finetuned']['incorrect_shank_predictions']}. ", '',
+             'Changes for that earlier-answer subset: see  `docvqa_comparison_summary.json` of `old_shank_group`; '
+             'The HTML viewer can filter the earlier model’s repeated-Shank subset.', '',
+             '## Model Selection and Reloading', '',
+             f"Candidate selected by minimum validation NLL: `{adapter.relative_to(ROOT)}`. "
+             f"Final selection by generation on 256 fixed questions: **{selection['selected']}**. ", '',
+             'Fine-tuned evaluation starts a fresh process and reloads official base weights plus disk adapter before actual generation. '
+             'Adapter hashes are in training_summary.json. Tests select neither candidate checkpoints nor the final model.', '',
+             'This evaluates the official complete model and subsequent fine-tuning under a local protocol; it cannot uniquely explain earlier from-scratch alignment failure.']
     if interim.exists():
         values = json.loads(interim.read_text())
-        lines.extend(['', '## 中途生成检查', '',
-                      f"第 100 步在同一固定 256 题上的四任务生成均分为 {values['task_macro_mean_percent']:.4f}，"
-                      '原始官方模型为 59.2318。DocVQA/InfoVQA 提升而 ChartQA 下降；'
-                      '这说明较低 teacher-forced loss 不保证更高生成分数。'
-                      '该检查未改变既定训练参数、轮数和最终检查点选择规则。', '',
-                      '逐题原始结果：`artifacts/official_und/sft100_validation.rank*.jsonl`。'])
+        lines.extend(['', '## Intermediate Generation Checks', '',
+                      f"At step 100, four-task mean generation on the same 256 questions:  {values['task_macro_mean_percent']:.4f}, "
+                      'Original official model: 59.2318. DocVQA/InfoVQA improve while ChartQA falls; '
+                      'Lower teacher-forced loss does not guarantee better generation. '
+                      'This check changes neither fixed parameters/epochs nor final-checkpoint selection.', '',
+                      'Raw per-question results: `artifacts/official_und/sft100_validation.rank*.jsonl`. '])
     (ROOT / 'docs/OFFICIAL_UND_TRAINING.md').write_text('\n'.join(lines) + '\n')
     print(json.dumps(summary, ensure_ascii=False))
 

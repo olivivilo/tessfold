@@ -121,7 +121,7 @@ def prepare():
                                   by_task=dict(collections.Counter(r['task'] for r in cohort['formal_benchmark'])))
     registration = dict(
         registered_utc=now(), suite='column_tree_full_20261108',
-        user_request='自适应列划分10%/25%/50%/75%全量训练；问题条件树新增75%；与既有10%/25%/50%合并展示，完全相同数据划分',
+        user_request='Full Column training at 10%/25%/50%/75%, new Tree75%, and combined existing Tree10%/25%/50% reporting with identical data splits',
         clarification='Legacy25% was global_topk, not quadtree_question; also train missing tree25% to make complete2x4 comparison. Preserve legacyglobal_topk as separate reference.',
         runs=records, new_runs=sum(not r['reuse'] for r in records), reused_runs=sum(r['reuse'] for r in records),
         dataset=data, train_validation_benchmark_document_disjoint=True,

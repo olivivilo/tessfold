@@ -8,81 +8,81 @@ BASE=ROOT/'artifacts/tessfold_acceleration_20261115'
 
 def main():
     queue=subprocess.run(['squeue','-h','-u','jchen524','-o','%i|%j|%T|%M|%R'],capture_output=True,text=True).stdout.strip()
-    doc=['# TessFold 第二轮加速、KV 修复与新版8B迁移实验','',f'更新时间 UTC：{now()}。','',
-        '**总入口**：`.venv/bin/python -m scripts.tessfold_accel.progress`。本报告仅从实际日志和完成标志重建；“已提交/正在运行”不等于完成。原20261114/修复20261115实验、官方UND和原生成器权重均保留。','',
-        '## 目标和版本边界','',
-        '依据tessfold.md继续减少压缩开销、验证视觉前缀复用、扩大数值及任务验证，并将约7B扩展落实为新版Qwen3-VL-8B上的压缩器训练。UND工程优化保持零重训；新版8B使用自己的视觉编码器和对齐，冻结全部基模参数，只训练新增P生成器。两者不混用分数。','',
-        '## 编译切分与纯压缩开销','',
-        '原实现每次重新生成/整数排序网格索引（Ascend回退CPU），Python循环切分，并构造稠密P。新严格路径缓存官方2×2block几何；C++编译保留FP32积分图、NumPy pairwise求和和cut/tie顺序；对小于2^24的唯一代表索引以FP32精确排序避免int64回退；保留原FP32 softmax与GEMM。编译参数禁止fast-math和FMA重结合。','']
-    cpu=load(BASE/'native/cpu_partition_tests.json');doc+=[f'CPU独立原NumPy对照：{cpu.get("cases",0)}例，分区不一致{cpu.get("mismatches","未完成")}；含近均匀、lognormal和单行/列案例。入口`.venv/bin/python -m scripts.test_tessfold_native_partition`。','']
+    doc=['# TessFold Round Two: Acceleration, KV Repair, and Native 8B Compression','',f'Updated (UTC):{now()}. ','',
+        '**Main entry point**: `.venv/bin/python -m scripts.tessfold_accel.progress`. This report reconstructs actual logs and completion markers; submitted/running is not completed. Original 20261114 and repaired 20261115 experiments, official UND, and generator weights remain.','',
+        '## Targets and Version Boundaries','',
+        'Continue tessfold.md by reducing compression overhead, validating visual-prefix reuse, expanding numerical/task checks, and training compressors on the newer, similarly sized Qwen3-VL-8B extension. UND execution optimization remains training-free. Native 8B uses its own visual encoder/alignment, freezes the complete backbone, and trains only the new P generator. Scores from these two routes are not mixed.','',
+        '## Compiled Partitioning and Compressor-Only Overhead','',
+        'The original implementation regenerates/integer-sorts grid indices (CPU fallback on Ascend), partitions in Python loops, and constructs dense P. The new strict path caches official 2×2 block geometry. Its C++ implementation retains the FP32 integral image, NumPy pairwise summation, and cut/tie ordering. Unique representative indices below 2^24 are exactly sorted as FP32 to avoid int64 fallback. Original FP32 softmax/GEMM remain; fast-math and FMA reassociation are disabled.','']
+    cpu=load(BASE/'native/cpu_partition_tests.json');doc+=[f'Independent CPU comparison against original NumPy: {cpu.get("cases",0)} cases; partition mismatches {cpu.get("mismatches","Incomplete")}; includes near-uniform, lognormal, and single-row/column cases. Entry: `.venv/bin/python -m scripts.test_tessfold_native_partition`. ','']
     for label in ['pilot1','validation1']:
         rr=[r for f in (BASE/label).glob('rows.rank*.jsonl') for r in lines(f)]
         if not rr:continue
-        doc+=[f'### {label}','',f'已提交{len(rr)}例；完成标志：{(BASE/label/"complete.json").exists()}。','',
-            '|路径|特征不逐位相等|生成token变化|纯压缩wall中位ms|','|---|---:|---:|---:|']
+        doc+=[f'### {label}','',f'Submitted{len(rr)} cases; completion marker: {(BASE/label/"complete.json").exists()}. ','',
+            '|Path|Features are not bit-exact|Generated-token changes|Median compressor wall time (ms)|','|---|---:|---:|---:|']
         for b in ['dense_exact','bucket_fp32','bucket_fold','hard_linear']:
             a=[r['variants'][b] for r in rr]
             doc.append(f'|{b}|{sum(not x["feature_equal"] for x in a)}|{sum(not x["generation_equal"] for x in a)}|{np.median([x["compressor_wall_ms"] for x in a]):.4f}|')
-        doc+=['','pure wall是预热后重复调用整个压缩函数（含host传输、CPU分区及NPU聚合），不含merger。分阶段同步另单列，不用同步分段之和伪装无扰动总耗时。bucket为O(N)支持量候选，改变归约舍入且当前调度开销偏高；未推广为严格路径。Hard是独立模型变体。','']
-    doc+=['### 图重放与真正线性聚合候选','',
-        'NPU图捕获score与readout，中间保留精确CPU切分。捕获/编译费用和每shape计划常驻内存独立记录；不把首次开销隐藏为无条件冷启动优势。默认完整效率表使用无需图捕获的编译严格路径。','',
-        '|试验|例数|完整结束|纯压缩wall中位ms|最小/最大ms|','|---|---:|---|---:|---|']
+        doc+=['','Pure wall time repeatedly calls the entire warmed compressor, including host transfer, CPU partitioning, and NPU aggregation but excluding the merger. Synchronized stage times are reported separately; their sum is not presented as unperturbed total latency. The bucket candidate has O(N) support but changes reduction rounding and currently incurs high scheduling overhead, so it is not promoted to the strict path. Hard is a separate model variant.','']
+    doc+=['### Graph Replay and Truly Linear-Aggregation Candidates','',
+        'Capture scoring/readout in an NPU graph while retaining exact CPU partitioning between them. Record compilation/capture and resident memory per shape separately; do not hide startup costs. Default efficiency uses the compiled strict path without graph capture.','',
+        '|Experiment|Cases|Completed|Median compressor wall time (ms)|Minimum / maximum (ms)|','|---|---:|---|---:|---|']
     for label in ['graph_full1','graph_full2','sparse2','packed1','host_pool1','hard_graph1']:
         rr=[r for f in (BASE/label).glob('rows.rank*.json') for r in load(f,[])]
         if not rr:continue
         v=[r['pure_compressor_ms'] for r in rr]
         doc.append(f'|{label}|{len(rr)}|{(BASE/label/"complete.json").exists()}|{np.median(v):.4f}|{min(v):.4f}/{max(v):.4f}|')
-    doc+=['','sparse1最初诊断出现非有限值，未生成成功标志；保留失败日志。保留捕获常量并更换归约调用后，sparse2独立检查有限值、重复运行与分数，发现部分index_add非确定归约，未作为Bit-Exact推广。packed1使用确定性的局部补齐GEMM，host_pool1使用CPU SIMD并计入双向传输，均未获得优于严格路径的整体收益，保留为负结果。','',
-        '## 完整效率复测与全量等价性','']
+    doc+=['','sparse1 produced nonfinite values and no success marker; its failure logs remain. After retaining captured constants and changing the reduction call, sparse2 independently checked finiteness, repeated execution, and scores. Some index_add reductions were nondeterministic, so it was not promoted as bit-exact. packed1 uses deterministic locally padded GEMM; host_pool1 uses CPU SIMD with both transfer directions counted. Neither improves overall performance over the strict path; both remain documented negative results.','',
+        '## Full Efficiency Remeasurement and Full-Set Equivalence','']
     n=sum(len(lines(p)) for p in (BASE/'system_exact/single').glob('results.rank*.jsonl'))
     formal=sum(len(lines(p)) for p in (BASE/'formal_equivalence').glob('rows.rank*.jsonl'))
-    doc += [f'编译严格路径完整效率：{n}/9450记录，完成并审计：{(BASE/"system_exact/complete.json").exists()}。原90QA/15配置、自然EOS和fixed64各三轮、另1350内存，不改变问题或权重。入口`sbatch scripts/tessfold_accel/system.sh`；完成后`.venv/bin/python -m scripts.tessfold_accel.system_report`。','',
-        f'正式全量等价性：{formal}/94260记录（23565QA×Column/Tree×25%/50%）。逐例P、PH和生成token对原完整结果检查，任何失败不自动放宽门槛。入口`sbatch scripts/tessfold_accel/formal.sh`。','',
-        '## 视觉KV：定位、修复与限制','',
-        '已定位：原prefix停在最后图像placeholder，改为包括官方vision_end/后续分隔符后，已知KLC/REF样例恢复相同；Tree/DeepForm样例仍不同。比较全prompt与单独prefix逐层KV，第一个差异可出现在不同层；不同矩阵形状和attention backend会改变舍入，切换eager也不保证原生SDPA输出一致。不是上一题答案KV污染。','',
-        '新fork只复制DynamicCache的层对象，共享只读前缀tensor；DynamicLayer.update通过cat产生新storage，每题检查原cache长度、指针和version均不变。避免deepcopy完整前缀的额外开销。该方法仅支持标准DynamicLayer，不冒充paged-KV服务框架。特征缓存题目输入从原模板精确展开图像placeholder，不再每题重新读图/processor。','',
-        '|场景|题数|完整结束|生成token变化|逐题分数变化和|','|---|---:|---|---:|---:|']
+    doc += [f'Full compiled-strict efficiency: {n}/9450 records, completed and audited: {(BASE/"system_exact/complete.json").exists()}. Original 90 QA / 15 configurations, natural/fixed64 × 3 repeats, plus 1,350 memory records; questions and weights unchanged. Entry point: `sbatch scripts/tessfold_accel/system.sh`; after completion `.venv/bin/python -m scripts.tessfold_accel.system_report`. ','',
+        f'Full formal equivalence: {formal}/94260 records (23,565 QA × Column/Tree × 25%/50%). P, PH, and generated tokens are checked against original full results case by case; failure never relaxes eligibility automatically. Entry point: `sbatch scripts/tessfold_accel/formal.sh`. ','',
+        '## Visual KV: Diagnosis, Repair, and Limitations','',
+        'The original prefix stopped at the final image placeholder. Extending it through official vision_end/following separators restores the known KLC/REF case, but Tree/DeepForm still differs. Layerwise KV comparisons can first differ at different layers; matrix shapes and attention backends alter rounding, and eager does not guarantee native SDPA output equality. This is not contamination by previous-answer KV.','',
+        'The new fork copies DynamicCache layer objects while sharing read-only prefix tensors. DynamicLayer.update concatenates into new storage; each question verifies unchanged base-cache length, pointer, and version. This avoids deepcopying the full prefix. It supports standard DynamicLayer only, not a paged-KV serving framework. Feature-cached questions expand image placeholders exactly from the original template without rereading images or rerunning the processor.','',
+        '|Scenario|Questions|Completed|Generated-token changes|Per-question score changes and |','|---|---:|---|---:|---:|']
     for name in ['REF','Column']:
         p=BASE/'prefix_pilot1'/name;rr=[r for f in p.glob('rows.rank*.jsonl') for r in lines(f)]
         if rr:doc.append(f'|{name}|{len(rr)}|{(p/"complete.json").exists()}|{sum(not r["tokens_equal"] for r in rr)}|{sum(r["cached_score"]-r["reference_score"] for r in rr):.4f}|')
-    doc+=['','prefix_pilot1包含24个真实10问页及两个历史失败页；不是全体8任务。若出现差异，不能作为严格无损KV推广；需要单独全量任务影响评估，公平比较REF与Column。Tree不能跨不同问题复用问题相关视觉前缀。两种prefix切点在因果意义上均合法，延长边界改变了kernel形状并修复某个已知样例，不代表发现了原切点的跨题上下文污染。','',
-        '## Qwen3-VL-8B压缩迁移结构','',
-        '此前仅有未压缩原生小验证；本轮已新增可训练P。插入点是原生visual merger之后、text decoder之前，最终4096维视觉特征和3条DeepStack视觉特征使用同一个P做凸组合。输出长度M=round(rN)，每行非负、和为1，区域互不重叠；保留最高权重代表位置及原生三维MRoPE坐标，问题/答案坐标保持原值。NativeSpatialRouter接收4096维特征，LayerNorm→Linear(4096,96)→空间depthwise/pointwise卷积→打分；Tree另用4096维问题embedding及可训练问题门，Column不看问题。','',
-        '这与UND的768维pre-merger路径显著不同：8B本轮不节省其视觉encoder或原生merger计算，也不声称旧UND对齐能直接移植。身份路径已对8道原生56题组的官方HF token验证，并测试两个预算/两结构的KL反向梯度，基模参数梯度始终为空。','',
-        '### 训练协议和先导门槛','',
-        '训练图像与固定56题验证按document_id互斥，复用原20k训练池；先导512题优先每图一题、各任务平衡。Teacher为同一冻结8B的greedy短答案（64token），使用完整词表KL、相同teacher响应前缀，不拿gold作训练label。AdamW、weight_decay=0、clip=5、10%warmup后cosine至0.1LR；记录原gradient norm和clip multiplier，保存optimizer断点。默认batch32/3epochs，LR3e-4；未过门槛两结构另试1e-4和1e-3。','',
-        '扩大训练要求同一个先导checkpoint同时满足：dev KL≤0.95×initial，且生成宏分至少提高0.25点（已接近teacher时允许teacher−0.25内）。只看固定dev，不按正式测试追选。全量训练使用原20k、4epochs及通过门槛的LR/结构，基模全冻结。','',
-        '|训练版本|结构/预算|训练日志step数|完成|初始dev KL/分数|最终dev KL/分数|先导门槛|','|---|---|---:|---|---|---|---|']
+    doc+=['','prefix_pilot1 contains 24 actual pages with 10 questions each and two historical failure pages, not all eight tasks. Output differences prohibit a strict lossless-KV claim and require separate full-task impact evaluation with fair REF/Column comparison. Tree cannot reuse question-dependent visual prefixes across different questions. Both prefix boundaries are causally valid; extending the boundary changes kernel shapes and fixes a known case, but does not establish cross-question contamination at the original boundary.','',
+        '## Qwen3-VL-8B Compression Architecture','',
+        'Earlier checks used only uncompressed native inference on a small validation set; this round adds trainable P after native visual mergers and before the text decoder. Final 4,096-dimensional features and 3 DeepStack feature branches share P. M=round(rN), with nonnegative unit-sum rows and disjoint regions. Preserve highest-weight representatives\' original three-dimensional MRoPE coordinates and unchanged question/answer positions. NativeSpatialRouter uses 4,096-dimensional inputs, LayerNorm→Linear(4096,96)→depthwise/pointwise spatial convolution→scoring. Tree additionally uses 4,096-dimensional question embeddings with a trainable gate; Column ignores questions.','',
+        'This differs substantially from UND\'s 768-dimensional pre-merger path. Native 8B saves no visual encoder/native-merger work, and old UND alignment is not assumed transferable. The identity path is checked against official HF tokens on 8 questions from the native 56-question set. KL gradients are tested at two budgets/two architectures; all backbone parameter gradients remain absent.','',
+        '### Training Protocol and Pilot Eligibility Criteria','',
+        'Training images and the fixed 56-question development set are document-disjoint, using the original 20k pool. The 512-question pilot prefers one question/image and balances tasks. Teacher is the same frozen 8B model generating short greedy answers (64 tokens). Full-vocabulary KL uses shared teacher prefixes, not gold labels. AdamW, weight_decay=0, clip=5, 10% warmup then cosine to 0.1 LR; log pre-clipping norms/multipliers and save optimizer state. Defaults: batch=32, 3 epochs, LR=3e-4; failed architectures additionally try 1e-4 and 1e-3.','',
+        'Expansion requires a single pilot checkpoint satisfying development KL≤0.95×initial and generation macro gain ≥0.25 points (allowing teacher−0.25 when already near teacher). Selection uses fixed development data only, never formal tests. Full training uses original 20k, 4 epochs, the passing LR/architecture, and a frozen backbone.','',
+        '|Training version|Architecture / budget|Training-log steps|Completed|Initial development KL / score|Final development KL / score|Pilot eligibility criterion|','|---|---|---:|---|---|---|---|']
     for label in ['qwen_pilot1','qwen_pilot_low','qwen_pilot_high','qwen_pilot_stable','qwen_full_pass1','qwen_full_tree25','qwen_full_stable50']:
         for out in sorted((BASE/label).glob('*_r*')):
             init=load(out/'initial.summary.json');end=load(out/'complete.json');epochs=sorted(out.glob('epoch*.summary.json'),key=lambda p:int(p.name.split('.')[0][5:]))
             last=load(epochs[-1]) if epochs else {}
-            def val(r):return f'{r["kl"]:.4f}/{r["macro"]:.3f}' if r else '尚未完成'
-            doc.append(f'|{label}|{out.name}|{len(lines(out/"training.jsonl"))}|{bool(end)}|{val(init)}|{val(last)}|{end.get("pilot_gate_passed","待评估")}|')
+            def val(r):return f'{r["kl"]:.4f}/{r["macro"]:.3f}' if r else 'Not completed'
+            doc.append(f'|{label}|{out.name}|{len(lines(out/"training.jsonl"))}|{bool(end)}|{val(init)}|{val(last)}|{end.get("pilot_gate_passed","Pending evaluation")}|')
     dataset=load(BASE/'dataset_audit.json')
     if dataset:
-        doc+=['','### 实际数据规模','', '|划分|QA|图像|任务分布|','|---|---:|---:|---|']
+        doc+=['','### Actual Dataset Size','', '|Split|QA|Images|Task distribution|','|---|---:|---:|---|']
         for name,r in dataset['splits'].items():doc.append(f'|{name}|{r["questions"]}|{r["images"]}|{json.dumps(r["by_task"],ensure_ascii=False)}|')
-        doc+=['','训练/验证/正式评测的document_id交集均为0；[逐文件签名与审计](../artifacts/tessfold_acceleration_20261115/dataset_audit.json)。']
-    doc+=['','StableColumn是显式结构试验：支持区域仅由图像detail决定并在训练时保持不受score扰动，训练局部权重和温度；用于排查detached切分随score变化带来的不稳定，不冒充原分区规则的无损优化。通过先导门槛后才进入20k。','',
-        '8B开发集七任务的DeepForm/KLC为DUE corpus F1；旧UND共享完整benchmark为field EM，不能把两者宏平均直接相减。最终8B正式评测应同时给出指标口径及未压缩teacher；小验证分数不是正式压缩成绩。','',
-        '微批训练效率试验约1.46–1.50倍更快，但一个固定样例对的KL差0.050002略超预设0.05门槛，因此没有换入正式训练，也未为提高速度放宽门槛；失败记录保留。','']
+        doc+=['','Train/validation/formal document-ID intersections are zero. [File signatures and audit](../artifacts/tessfold_acceleration_20261115/dataset_audit.json). ']
+    doc+=['','StableColumn is a separate architectural test: support allocation depends only on image detail and is not perturbed by learned scores; local weights and temperature remain trainable. It diagnoses detached split instability, not a lossless optimization of the original rule. Full 20k training requires passing its pilot.','',
+        'Native-8B seven-task development uses DUE corpus F1 for DeepForm/KLC; the old shared UND full benchmark uses field EM, so their macros cannot be subtracted directly. Final 8B formal reporting must include metric definitions and uncompressed teacher; small-validation scores are not formal compression results.','',
+        'Microbatch training is about 1.46–1.50× faster, but a fixed-pair KL difference .050002 exceeds the .05 gate. It is not used formally; the gate is not relaxed for speed, and failure records remain.','']
     ceiling=load(BASE/'system_exact/single/amdahl_front_ceiling.json')
     if ceiling:
-        v=ceiling['natural_eos'];doc += ['## 前端限制与作者融合注意力候选','',f'本次90QA冷启动条件下，REF前端（processor+完整encoder）平均{v["reference_front_mean_ms"]:.2f}ms、TTFT平均{v["reference_ttft_mean_ms"]:.2f}ms；即使后端全部计算降到零、前端保持不变，理想TTFT加速上限也仅{v["ideal_zero_postfront_ttft_upper_bound"]:.3f}倍。这是有限工作负载的Amdahl上界，不是实测加速或所有设备通用结论。','']
+        v=ceiling['natural_eos'];doc += ['## Frontend Bottlenecks and the Author-Provided Fused-Attention Candidate','',f'On these 90 cold requests, REF frontend (processor + complete encoder) mean {v["reference_front_mean_ms"]:.2f} ms; mean TTFT {v["reference_ttft_mean_ms"]:.2f} ms; with frontend unchanged and all backend work free, ideal TTFT speedup is at most {v["ideal_zero_postfront_ttft_upper_bound"]:.3f}×. Amdahl bound for this limited workload, not measured speedup or a device-independent conclusion.','']
     fused=load(BASE/'fused_vision_pilot/complete.json')
-    doc+=['在相同冻结视觉权重上新增独立候选：临时绑定作者已有VisionAscendAttention.forward（npu_prompt_flash_attention），替代此前部署选择的eager V2，不改官方源码。调用未显式指定next_tokens，后续本地接口文档与双向试验提示需检查注意力范围；不能假设只改变浮点舍入。须独立报告误差、生成和分数，不能继承Bit-Exact；只有encoder中位加速≥1.5倍且REF开发集分降幅≤2点才考虑进一步全量评测。','',
-        f'融合注意力先导：`{json.dumps(fused,ensure_ascii=False) if fused else "尚未完成"}`。','',
-        '## 最终验证的补充对照','',
-        '8B正式主表为23565题×REF及四组dev所选压缩器，共117825条；另在预先hash固定的512图/2404题上评测四个初始P，共9616条，用同题训练前后对照检验泛化，正式总127441条。主表不混入这个子集。分阶段内存另1350次独立1ms采样，不并入2700条时延；独立memory pass必须对natural timing逐token相同。先导15次技术检查不参与模型选择。','',
-        '[最终验证协议](TESSFOLD_FINAL_VALIDATION_PROTOCOL.md) · [与tessfold.md的逐项目标对照](TESSFOLD_TARGET_GAP.md)。','',
-        '## 当前作业','', '```text',queue or '队列为空','```','',
-        '## 尚不能写进论文的结论','',
-        '在实测前不写亚毫秒完整压缩、无损O(N)soft替换、KV缓存必然无损、4倍并发吞吐或新版8B必然2.2–3.1倍加速。全请求峰值仍须保留encoder既有水位，解析FLOPs只算解析值。后续新增结果以各阶段complete和审计为准。']
+    doc+=['A separate candidate uses the same frozen vision weights and temporarily binds the author\'s existing VisionAscendAttention.forward (npu_prompt_flash_attention) in place of deployed eager V2, without editing official sources. The call omits next_tokens; subsequent interface documentation and bidirectional tests require checking its attention extent rather than assuming rounding-only changes. Errors, generations, and scores are reported independently and cannot inherit bit-exact claims. Expansion requires median encoder speedup ≥1.5× and REF development loss ≤2 points.','',
+        f'Fused-attention pilot: `{json.dumps(fused,ensure_ascii=False) if fused else "Not completed"}`. ','',
+        '## Additional Controls in the Final Validation','',
+        'The 8B primary table contains 23,565 questions × REF plus four dev-selected compressors: 117,825 records. Four initial P models are additionally evaluated on a hash-fixed 512-image/2,404-question subset: 9,616 records for matched before/after generalization checks, giving 127,441 formal records in total. This subset is not mixed into the primary table. Another 1,350 independent 1 ms memory measurements are separate from 2,700 timing records and must match natural-timing tokens exactly. The 15 pilot technical checks do not select models.','',
+        '[Final validation protocol](TESSFOLD_FINAL_VALIDATION_PROTOCOL.md) · [Target-by-target comparison against tessfold.md](TESSFOLD_TARGET_GAP.md). ','',
+        '## Current Jobs','', '```text',queue or 'Queue empty','```','',
+        '## Claims Not Supported for the Manuscript','',
+        'Before measurement, do not claim submillisecond full compression, lossless O(N) soft replacement, necessarily lossless KV reuse, fourfold concurrency, or inevitable 2.2–3.1× 8B speedup. Full-request peaks retain encoder occupancy; analytical FLOPs remain estimates. New results require stage completion/audits.']
     if (BASE/'all_stages_complete.json').exists():
-        doc[1:1]=['','**本轮全部13阶段及最终审计已完成。** [最终结果速读](TESSFOLD_FINAL_RESULTS.md) · [目标差距](TESSFOLD_TARGET_GAP.md) · [8B及融合论文表](TESSFOLD_PAPER_EXTENSION_TABLES.md)。下文所有结论以完成的原始记录为准。']
+        doc[1:1]=['','**All 13 stages and the final audit are complete.** [Final-results overview](TESSFOLD_FINAL_RESULTS.md) · [Target gaps](TESSFOLD_TARGET_GAP.md) · [8B/fusion manuscript tables](TESSFOLD_PAPER_EXTENSION_TABLES.md). All conclusions below use completed original records.']
     report=ROOT/'docs/TESSFOLD_ACCELERATION_AND_8B_RESULTS.md'
-    marker='\n\n## 已完成阶段的实测汇总'
+    marker='\n\n## Measurements for Completed Stages'
     previous=report.read_text() if report.exists() else ''
     retained=marker+previous.split(marker,1)[1] if marker in previous else ''
     report.write_text('\n'.join(doc)+'\n'+retained)

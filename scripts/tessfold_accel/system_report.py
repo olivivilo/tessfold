@@ -18,19 +18,19 @@ def main():
         if r['method']=='REF':assert r['generated_ids']==reference[key(r)]['generated_ids']
         if r['instrumentation']=='memory1ms':assert sha(ROOT/r['trace'])==r['trace_sha256']
     stats=speed_rows(rows);save(BASE/'single/summary.json',dict(rows=stats,exact_tokens_verified=True,traces_verified=True))
-    doc=['# TessFold 编译切分与精确推理：完整效率复测','',f'UTC：{now()}。','',
-        '**入口**：`.venv/bin/python -m scripts.tessfold_accel.system_report`；运行：`sbatch scripts/tessfold_accel/system.sh`。','',
-        '保持UND、生成器checkpoint、保留率及90道计时问题不变。新FAST路径缓存官方block几何、用C++编译原FP32切分、以可精确表示的FP32代表索引排序避开整数argsort的CPU回退；软聚合仍为原FP32 masked softmax与GEMM。不是O(N)软聚合，不宣称其亚毫秒。','',
-        '9450条唯一记录，8100时延+1350独立1ms内存。自然终止与固定64各三次，NPU event和同步wall。所有FAST输出同时对当前DENSE和历史STRICT逐token核对，REF也对历史核对；全部通过后才生成本报告。','',
-        '|方法|保留率|模式|TTFT p50 ms|post-ViT TTFT p50 ms|E2E p50 ms|压缩+merger p50 ms|全流程峰值 GiB|视觉KV MiB|',
+    doc=['# TessFold Compiled Partitioning and Exact Inference: Full Efficiency Remeasurement','',f'UTC: {now()}. ','',
+        '**Entry point**: `.venv/bin/python -m scripts.tessfold_accel.system_report`; run: `sbatch scripts/tessfold_accel/system.sh`. ','',
+        'UND, generator checkpoints, retention fractions, and 90 timing questions remain fixed. FAST caches official block geometry, compiles the original FP32 partitioner in C++, and sorts exactly representable FP32 representative indices to avoid integer-argsort CPU fallback. Soft aggregation retains the original FP32 masked softmax and GEMM. This is not O(N) soft aggregation, and submillisecond latency is not claimed.','',
+        '9,450 unique records: 8,100 timing + 1,350 independent 1 ms memory measurements. Natural/fixed64 each have three repeats, NPU-event and synchronized wall timing. FAST is checked tokenwise against current DENSE and historical STRICT; REF is checked against history. Generate this report only after all checks pass.','',
+        '|Method|Retention fraction|Mode|TTFT p50 ms|post-ViT TTFT p50 ms|E2E p50 ms|Compression+merger p50 (ms)|Full-pipeline peak (GiB)|Visual KV (MiB)|',
         '|---|---:|---|---:|---:|---:|---:|---:|---:|']
     for r in stats:
-        kv='未独立取得' if r['visual_kv_mib'] is None else f'{r["visual_kv_mib"]:.2f}'
+        kv='Not measured separately' if r['visual_kv_mib'] is None else f'{r["visual_kv_mib"]:.2f}'
         doc.append(f'|{r["method"]}|{r["ratio"]:.0%}|{r["mode"]}|{r["ttft_p50_ms"]:.2f}|{r["post_encoder_ttft_p50_ms"]:.2f}|{r["e2e_p50_ms"]:.2f}|{r["phase_wall_medians_ms"]["compression_and_merger"]:.2f}|{r["peak_allocated_max_gib"]:.4f}|{kv}|')
     comparisons=[];rng=np.random.default_rng(20261115)
-    doc+=['','## 同题配对加速比','',
-        '以下使用每题三次平均再计算整体平均时延比，以页面为bootstrap单位10000次。不把中位数比与均值比混用。','',
-        '|参考|候选|保留率|模式|E2E平均加速比|95%页面CI|TTFT平均加速比|','|---|---|---:|---|---:|---|---:|']
+    doc+=['','## Paired Speedups on Identical Questions','',
+        'Average each question’s three repeats, then compare aggregate mean latency; bootstrap pages 10,000 times. Ratios of medians and ratios of means are not interchangeable.','',
+        '|Reference|Candidate|Retention fraction|Mode|Mean E2E speedup|95% page-level CI|Mean TTFT speedup|','|---|---|---:|---|---:|---|---:|']
     for ratio in [.25,.5]:
      for method in ['C_FAST','T_FAST']:
       for ref in ['REF',method.replace('_FAST','_DENSE')]:
@@ -55,8 +55,8 @@ def main():
         rr=list(rr);memory.append(dict(method=method,ratio=ratio,requests=len(rr),peak_max_gib=max(r['peak_allocated_bytes'] for r in rr)/2**30,
             decoder_peak_max_gib=max(r['stages'][s]['peak_allocated_bytes'] for r in rr for s in r['stages'] if s in ['qwen_prefill','generation','decoder_total'])/2**30))
     save(BASE/'single/memory_summary.json',memory)
-    doc+=['','post-ViT字段在FAST/REF中边界一致；旧DENSE/S的tower阶段包含原全长merger，应解释为post-tower而非统一纯ViT边界。端到端始终计入全部计算。图重放部署另行测量，主表FAST不含提前编译捕获的隐藏摊销。','',
-        'Hard是按原score挑代表的独立变体；不继承soft准确率。Resize与S²Prune使用原对照流程。有限固定样本、同步钩子与共享Slurm节点会限制时延推广，不把本表当生产并发吞吐。']
+    doc+=['','FAST/REF share a post-ViT boundary. Old DENSE/S tower timing includes full-length merger and should be called post-tower, not the same pure-ViT boundary. E2E includes all work. Graph-replay deployment is measured separately; primary FAST tables do not hide capture/compilation amortization.','',
+        'Hard selects representatives using original scores and does not inherit soft accuracy. Resize/S²Prune retain original control procedures. Fixed limited samples, synchronization hooks, and shared Slurm nodes limit timing generalization; these are not production-concurrency measurements.']
     (ROOT/'docs/TESSFOLD_COMPILED_SYSTEM_RESULTS.md').write_text('\n'.join(doc)+'\n')
     tex=['% Measured only; FAST exact FP32 dense readout, compiled partition.',r'\begin{tabular}{lrrrr}',r'Method & Keep & TTFT(ms) & E2E(ms) & Compress+Merger(ms) \\']
     for r in stats:

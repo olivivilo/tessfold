@@ -28,7 +28,7 @@ def main():
         result = {'selected': selected, 'criterion': 'Mean native generation scores on the SAME fixed 256 validation QA',
                   'baseline_validation_mean': values['baseline']['task_macro_mean_percent'],
                   'finetuned_validation_mean': values['finetuned']['task_macro_mean_percent'],
-                  'reason': '采用固定验证题的四任务均分较高者；平分保留原始模型', 'test_used': False}
+                  'reason': 'Select higher four-task mean on fixed validation; ties retain original model', 'test_used': False}
         if selected == 'finetuned':
             result['adapter'] = json.loads((OUT / 'sft_selection.json').read_text())['adapter']
         (OUT / 'model_selection.json').write_text(json.dumps(result, indent=2, ensure_ascii=False))

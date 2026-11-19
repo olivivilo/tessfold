@@ -8,7 +8,7 @@ REG=BASE/'registration.json'
 SEEDS=[20261105,20261106,20261107]
 RATIOS=[.1,.25,.5,.75]
 KINDS=['col_adaptive','quadtree_question']
-LABEL={'col_adaptive':'自适应列划分','quadtree_question':'问题条件空间树'}
+LABEL={'col_adaptive':'Adaptive column partitioning','quadtree_question':'Question-conditioned spatial tree'}
 NEW_SOURCES=['scripts/seed_memory_common.py','scripts/column_tree_seed_memory_suite.py',
  'scripts/run_seed_memory_stage.py','scripts/eval_seed_memory.py','scripts/profile_seed_memory.py',
  'vqa/stage_memory.py','scripts/report_seed_memory.py','scripts/smoke_seed_memory.py',

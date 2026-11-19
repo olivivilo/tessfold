@@ -106,112 +106,112 @@ def main():
     update_rows=[[r['variant'],f"{r['median_clip_multiplier']:.7g}",f"{r['update_path_length']:.7g}",
         f(r['fit_final']['entropy_fraction']),f(r['fit_final']['effective_support']),f(r['fit_final']['collapse'])] for r in results]
     pred_rows=[[r['variant'],r['fit_initial']['student_prediction'],r['fit_final']['student_prediction'],fit['diagnostic_teacher_prediction']] for r in results]
-    text='''# MetaCompress 失败排查：输入审计与十二组干预实验
+    text='''# MetaCompress Failure Diagnosis: Input Audit and Twelve Interventions
 
-本报告记录实际完成的隔离诊断，原 20k/2 epochs 训练与 checkpoint 均保留。十二组各完成 50 次单图更新，另完成 48 次固定压缩对照、3 次完整预算对照及 BF16/FP32 方向有限差分；不是新的正式 benchmark，也不是根据测试集重新选模型。
+This report documents completed isolated diagnostics; original 20k/2-epoch training and checkpoints remain. Twelve runs each complete 50 single-image updates, alongside 48 fixed compression controls, 3 full-budget controls, and BF16/FP32 directional finite differences. This is not a new formal benchmark or test-based checkpoint selection.
 
-## 入口与原始数据
+## Entry Points and Raw Records
 
-- 实验脚本：[`scripts/diagnose_meta_compress.py`](../scripts/diagnose_meta_compress.py)。
-- Slurm 入口：[`scripts/slurm_meta_compress_diagnosis.sh`](../scripts/slurm_meta_compress_diagnosis.sh)。
-- 固定对照：[`scripts/diagnose_meta_compress_controls.py`](../scripts/diagnose_meta_compress_controls.py)。
-- 补全 KL-only 裁剪对照与局部 full-loss 对照：[`scripts/diagnose_meta_compress_factorial.py`](../scripts/diagnose_meta_compress_factorial.py)，先 `--prepare`，再分别运行 `--variant 0` / `--variant 1`。未修改第一批冻结的代码或 protocol。
-- 精度审计：[`scripts/diagnose_meta_compress_precision.py`](../scripts/diagnose_meta_compress_precision.py)。
-- 跨任务梯度审计：[`scripts/diagnose_meta_compress_task_gradients.py`](../scripts/diagnose_meta_compress_task_gradients.py)。
-- 完整 token 预算对照：[`scripts/diagnose_meta_compress_full_budget.py`](../scripts/diagnose_meta_compress_full_budget.py)。
-- 矩阵导出 / 图示：[`scripts/visualize_meta_compress_diagnosis.py`](../scripts/visualize_meta_compress_diagnosis.py)，`.pt` 中包含 P、grid、配置和 checkpoint SHA256。
-- 状态 / 报告统一入口：`bash scripts/run_meta_compress_diagnosis.sh status|report`。
-- 报告入口：[`scripts/report_meta_compress_diagnosis.py`](../scripts/report_meta_compress_diagnosis.py)。
-- 每题原始作答：[`answers.csv`](../artifacts/meta_compress_diagnosis/answers.csv)；完整数值：[`summary.json`](../artifacts/meta_compress_diagnosis/summary.json)。每组目录另有 50 步训练记录、首末梯度分项、参数变化、最终 checkpoint。
+- Experiment script: [`scripts/diagnose_meta_compress.py`](../scripts/diagnose_meta_compress.py).
+- Slurm entry point: [`scripts/slurm_meta_compress_diagnosis.sh`](../scripts/slurm_meta_compress_diagnosis.sh).
+- Fixed controls: [`scripts/diagnose_meta_compress_controls.py`](../scripts/diagnose_meta_compress_controls.py).
+- Additional KL-only clipping controls and local full-loss controls: [`scripts/diagnose_meta_compress_factorial.py`](../scripts/diagnose_meta_compress_factorial.py), first  `--prepare`, then run separately  `--variant 0` / `--variant 1`. The first frozen source version and protocol remain unchanged.
+- Precision audit: [`scripts/diagnose_meta_compress_precision.py`](../scripts/diagnose_meta_compress_precision.py).
+- Cross-task gradient audit: [`scripts/diagnose_meta_compress_task_gradients.py`](../scripts/diagnose_meta_compress_task_gradients.py).
+- Full-token-budget controls: [`scripts/diagnose_meta_compress_full_budget.py`](../scripts/diagnose_meta_compress_full_budget.py).
+- Matrix exports / visualizations: [`scripts/visualize_meta_compress_diagnosis.py`](../scripts/visualize_meta_compress_diagnosis.py), `.pt`  contains P, grid, configuration, and checkpoint SHA-256.
+- Unified status/report entry point: `bash scripts/run_meta_compress_diagnosis.sh status|report`.
+- Report entry: [`scripts/report_meta_compress_diagnosis.py`](../scripts/report_meta_compress_diagnosis.py).
+- Original answers per question: [`answers.csv`](../artifacts/meta_compress_diagnosis/answers.csv); complete values: [`summary.json`](../artifacts/meta_compress_diagnosis/summary.json). Each run also retains 50-step logs, initial/final component gradients, parameter changes, and final checkpoints.
 
 ```bash
-# 首次准备固定 cohort；已有 protocol 时会拒绝覆盖
+# Prepare the fixed cohort once; when  cohort; Existing protocol exists, refuse overwrite
 TORCH_DEVICE_BACKEND_AUTOLOAD=0 OPENBLAS_NUM_THREADS=1 .venv/bin/python -m scripts.diagnose_meta_compress --prepare
 sbatch scripts/slurm_meta_compress_diagnosis.sh
-# 固定对照也应在 compute node 执行
+# Fixed controls should also run on a  compute node execution
 TORCH_DEVICE_BACKEND_AUTOLOAD=0 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=16 .venv/bin/python -m scripts.diagnose_meta_compress_controls
 TORCH_DEVICE_BACKEND_AUTOLOAD=0 OPENBLAS_NUM_THREADS=1 .venv/bin/python -m scripts.report_meta_compress_diagnosis
 ```
 
-## 1. 固定协议与结论边界
+## 1. Fixed Protocol and Scope of Conclusions
 
-模型为官方 MonkeyOCRv2-B-Und，vision encoder、官方 merger 和 Qwen3-1.7B 全冻结。沿用原训练的 post-merger 插入位置、BF16 主干、FP32 生成器。训练目标是 teacher 自由生成答案的共享前缀、全词表正向 KL，含 EOS；gold 不参与 loss。
+The model is official MonkeyOCRv2-B-Und, with visual encoder, official merger, and Qwen3-1.7B frozen. Retain the original post-merger insertion, BF16 backbone, and FP32 generator. Train with full-vocabulary forward KL under a shared teacher-generated answer prefix, including EOS; gold never enters the loss.
 
-这里的官方 merger 属于 **MonkeyOCRv2**，将 encoder 的 768 维 token 对齐到 2048 维 Qwen 输入；它不是 MetaCompress，当前实例不减少 token 数。实验链路如下，两次 Qwen 前向共享权重、独立状态：
+The official merger belongs to **MonkeyOCRv2**, aligning 768-dimensional encoder tokens to 2,048-dimensional Qwen inputs. It is not MetaCompress and does not reduce token count in this instance. The following two Qwen forwards share weights but have independent state:
 
 ```mermaid
 flowchart LR
-    V[冻结官方 encoder] --> M[冻结官方 merger]
-    M --> X[原始 token X]
-    X --> T[冻结 Qwen teacher]
-    X --> G[压缩矩阵生成器]
-    G --> P[逐行 softmax 得到 P]
-    P --> C[压缩 token PX]
+    V[frozen official encoder] --> M[frozen official merger]
+    M --> X[original token X]
+    X --> T[frozen Qwen teacher]
+    X --> G[Compression-matrix generator]
+    G --> P[row-wise softmax yields P]
+    P --> C[compressed token PX]
     X --> C
-    C --> S[冻结 Qwen student]
-    T --> K[共同 teacher 前缀的 KL]
+    C --> S[frozen Qwen student]
+    T --> K[shared teacher prefix  KL]
     S --> K
-    P --> R[Entropy 与 Collapse]
-    K --> L[损失消融]
+    P --> R[Entropy and Collapse]
+    K --> L[Loss ablation]
     R --> L
-    L -. 只更新生成器 .-> G
+    L -. update generator only .-> G
 ```
 
-从原 20k **训练记录**中按固定 hash 选取 8 个不同图像：1 个 DocVQA 图像用于单图 overfit，7 个独立图像用于训练内诊断 holdout，覆盖全部 7 个有训练数据的任务。OCRBench 无训练样本，本轮没有加入。与官方 val/test 图像无交集。为检验能否保住正确证据，筛选 teacher 得分为 1、非空/非 None、答案不超过 12 token 的图像；一般图像不超过 4096 token，KLC/DeepForm 放宽到 5200。**因此本表 teacher 均为 100%，这是筛选条件，不是新的模型成绩；每任务只有 1 个 holdout，不能估计总体泛化或显著性。**
+Eight distinct images are hash-selected from the original 20k **training records**: one DocVQA image for single-image overfitting and seven independent training-source held-out images spanning all 7 tasks with training data. OCRBench has none and is excluded. Images do not overlap official val/test. Selection requires teacher score=1, a nonempty/non-None answer of at most 12 tokens, and generally at most 4,096 image tokens (5,200 for KLC/DeepForm). **Thus teacher scores are 100% by construction, not a new performance result. One held-out image per task cannot establish generalization or significance.**
 
-同一初始化用于所有生成器变体。同一图像与问题重复 50 次、batch=1；这与原 batch=36 的梯度统计不同，不能把此处的步数或超参数效果直接外推到原规模。自由 P 的参数数目和优化器不同，只用于可优化性 oracle，不能归因为单独的“生成器结构效应”。最终固定第 50 步，不按 gold 或 holdout 选 checkpoint。
+All generator variants share one initialization. Repeat the same image/question 50 times at batch=1; gradient statistics differ from original batch=36, so step counts and hyperparameter effects do not directly extrapolate. Free P has different parameter count and optimizer and serves only as an optimizability oracle, not an isolated generator-architecture ablation. Step 50 is fixed as final, with no gold/held-out checkpoint selection.
 
-'''+table(['角色','任务','问题 ID','原 token 数','teacher / gold 正确答案'],sample_rows)+'''
+'''+table(['Role','Task','Question ID','Original token count','Teacher / gold reference'],sample_rows)+'''
 
-## 2. 输入、缓存和因果位移审计
+## 2. Input, Cache, and Causal-Shift Audit
 
-对 fit 图像，原生官方输入路径与缓存路径生成完全相同；fresh native encoder 特征与缓存特征的最大绝对差为 '''+f(interface['native_cached_feature_max_abs'])+'''，raw 差为 '''+f(interface['native_cached_raw_max_abs'])+'''。缓存 teacher logits 与重新前向 logits 最大差 '''+f(interface['cached_logits_max_abs'])+'''；显式 P=I 经相同乘法/cast/占位路径后 KL='''+f(interface['identity_KL'])+'''。第一个和最后一个响应位置单独重算，与一次性 teacher forcing 对应 logits 一致。主干可训练参数为 0。
+On the fitting image, native official and cached paths generate identically; maximum fresh-versus-cached encoder-feature absolute error  '''+f(interface['native_cached_feature_max_abs'])+''', raw difference  '''+f(interface['native_cached_raw_max_abs'])+'''. Maximum cached-versus-recomputed teacher-logit difference:  '''+f(interface['cached_logits_max_abs'])+'''; explicit P=I through the same multiply/cast/placeholder path gives KL='''+f(interface['identity_KL'])+'''. Separately recomputed first/last response logits match the corresponding full teacher-forcing logits. Trainable backbone parameters: 0.
 
-这些检查支持当前数据路径与 causal shift 正确，不支持“缓存错 encoder”“没有把图像送入 decoder”“teacher/student 有共享 KV cache”等解释；逐次生成均新建独立状态。审计只覆盖一张 fit 图像的数值一致性，不能据此声称穷尽所有数据问题。
+These checks support the current data path and causal shift and do not support explanations involving the wrong encoder cache, images omitted from the decoder, or shared teacher/student KV. Each generation starts with independent state. Numerical equivalence is audited on one fitting image only, so not all possible data issues are ruled out.
 
-## 3. 十二组实际设置
+## 3. Twelve Evaluated Configurations
 
-'''+table(['名称','结构','优化目标','优化器','lr','全局 norm clip','保留率'],configs)+'''
+'''+table(['Name','Architecture','Optimization objective','Optimizer','lr','Global norm clip','Retention fraction'],configs)+'''
 
-`generator` 是原 MetaCompress 生成器。`free` 将原生成器在 fit 图像上的 P 取 log 作为独立可训练 logits，再逐行 softmax；不是论文 §4 的另一套初始化/SGD 配置，也不能用于独立图像推理。`local` 是明确的修改：在原 logits 上加固定局部 bias，同一均衡连续 token 分组内为 0，组外为 log(1e-6)，再 softmax。仍是凸组合，但它是 native 2×2 block **序列**的连续分组，不等于完整二维邻域，也不是原文方法。Adam 为额外诊断；paper 主实验仍是 SGD。全 loss 保留 KL + H + max-column-mass、权重均为 1。
+`generator` is the original MetaCompress generator.`free` Use log of the fitting-image generator P as independent trainable logits, then row softmax. This is not the paper’s Section-4 initialization/SGD setup and cannot infer on independent images.`local` is an explicit modification: add fixed local bias to original logits, 0 within each balanced contiguous token group and log(1e-6) outside, then softmax. It remains convex but groups contiguous native 2×2-block **sequence** positions, not full 2D neighborhoods, and differs from the paper. Adam is an additional diagnostic; the paper-style primary experiment retains SGD. Full loss keeps KL + H + max-column-mass, all weighted 1.
 
-自由 P 的 log/softmax 往返在浮点中不保证逐位等于生成器 P，BF16 前向可能放大微小差异，因此各变体的初始 KL 均独立重算，没有人为把 free 的首值替换为 generator 的首值。
+Log/softmax round trips need not reproduce P bitwise; BF16 may amplify tiny differences. Recompute every variant’s initial KL rather than substituting generator initial loss for free P.
 
-## 4. 训练图像与独立图像的首末结果
+## 4. Initial/Final Outcomes on Fitting and Held-Out Images
 
-下表“分数”为单题现有 scorer×100：DocVQA/InfoVQA 使用 ANLS，ChartQA 使用 relaxed accuracy，DT-VQA 使用 max(containment accuracy, ANLS)，WTQ 使用 denotation，DeepForm/KLC 使用单字段 exact match，**不等于官方 DUE corpus F1**。holdout 为七题混合任务指标的描述性均值，不能称为官方多任务成绩。KL 均在相同 teacher 响应上计算。
+Scores below are the existing single-question scorers ×100: ANLS for DocVQA/InfoVQA, relaxed accuracy for ChartQA, max(containment accuracy, ANLS) for DT-VQA, denotation for WTQ, and single-field exact match for DeepForm/KLC, **not official DUE corpus F1**. The held-out seven-question mean is descriptive across mixed metrics, not an official multitask score. All KL values use the same teacher responses.
 
-'''+table(['实验','保留率','fit KL：初→末','fit 分数：初→末','holdout 分数：初→末','holdout KL：初→末'],main_rows)+'''
+'''+table(['Experiment','Retention fraction','Fit KL: initial → final','Fit score: initial → final','Holdout score: initial → final','Holdout KL: initial → final'],main_rows)+'''
 
-训练问题：**'''+fit['question']+'''**；gold / teacher：**'''+fit['diagnostic_teacher_prediction']+'''**。
+Training questions: **'''+fit['question']+'''**; gold / teacher: **'''+fit['diagnostic_teacher_prediction']+'''**.
 
-'''+table(['实验','初始生成','第 50 步生成','teacher'],pred_rows)+'''
+'''+table(['Experiment','Initial generation','Step-50 generation','teacher'],pred_rows)+'''
 
-## 5. 梯度强度、冲突与实际更新
+## 5. Gradient Magnitudes, Conflicts, and Actual Updates
 
-以下是同一 fit 问题分别对 KL、H、collapse 求导，报告对该变体全部可训练参数拼接后的 L2 norm 与方向 cosine。数值大小不等于全数据梯度结论，cosine<0 代表该点的一阶下降方向有冲突。
+Differentiate KL, H, and collapse separately on the same fitting question. Report concatenated trainable-parameter L2 norms and direction cosines per variant. Magnitudes do not establish full-dataset behavior; cosine<0 indicates local first-order conflict.
 
-'''+table(['实验','阶段','||g_KL||','||g_H||','||g_C||','cos(KL,H)','cos(KL,C)','cos(H,C)'],grad_rows)+'''
+'''+table(['Experiment','Stage','||g_KL||','||g_H||','||g_C||','cos(KL,H)','cos(KL,C)','cos(H,C)'],grad_rows)+'''
 
-'''+table(['实验','裁剪乘数中位数','50 步实际更新路径长度','末行熵/log(n)','末 exp(H)','末 collapse'],update_rows)+'''
+'''+table(['Experiment','Median clipping multiplier','Actual update path length over 50 steps','Final row entropy / log(n)','Final exp(H)','Final collapse'],update_rows)+'''
 
-自由 P 与生成器的参数空间不同，更新路径长度不可直接比较。未裁剪采用 clip=inf 以测 norm；没有有限阈值的缩放。BF16 可以让 FP32 小更新的部分前向变化被舍入；当前原正式 checkpoint 相对 initial 的 BF16 压缩特征元素变化比例逐图见 `controls/feature_precision_audit.json`，不应把它简化为“所有梯度均失效”。
+Free P and generator parameter spaces differ, so update-path lengths are not directly comparable. Unclipped runs use clip=inf to measure norms without finite-threshold rescaling. BF16 can round away forward effects of small FP32 updates. Per-image fractions of BF16 compressed-feature elements changed by the original formal checkpoint versus initial are in  `controls/feature_precision_audit.json`, not complete failure of every gradient.
 
-![训练轨迹](../artifacts/meta_compress_diagnosis/ablation_curves.png)
+![Training trajectory](../artifacts/meta_compress_diagnosis/ablation_curves.png)
 
-训练记录每步的 loss 是该步更新**前**的值；首末表是更新前初始状态与第 50 次更新**后**独立重算的值。
+Each step’s logged loss is **before** its update. Initial/final tables independently recompute before the first and **after** the 50th update.
 
-## 6. 无训练的保留率 / 局部压缩对照
+## 6. Training-Free Retention and Local-Compression Controls
 
-固定 `mean`：按原生 token 顺序均衡分成 m 组，各组做均值；`sample`：各组取中间一个原 token，P 为 one-hot 行随机矩阵。不使用问题、答案或 decoder attention 选 token。它们用于区分“token 数减少”和“稠密全局混合”的影响；不能把更高保留率的收益算成同预算方法收益。
+Fixed `mean`: balanced m groups in native order, taking each group’s mean;`sample`: select the middle original token/group, giving one-hot row-stochastic P. Question/answer/decoder attention do not select tokens. These distinguish reduced count from dense mixing; higher-budget gains are not same-budget method gains.
 
-'''+table(['固定方法','保留率','fit KL','fit 分数','holdout KL','holdout 分数'],fixed_rows)+'''
+'''+table(['Fixed method','Retention fraction','fit KL','Fit score','holdout KL','Holdout score'],fixed_rows)+'''
 
-## 7. 可复核性与局限
+## 7. Auditability and Limitations
 
-全部 12 组完成检查、每组 50 步顺序检查、每图每阶段唯一性检查和 48 个固定对照完整性检查通过后才生成本报告。原 initial / final checkpoint SHA256 与 protocol 中记录一致。全部问题、gold、teacher/student 作答均保留在 answers.csv。原 benchmark 未参与此次 checkpoint 选择。
+Generate this report only after checks pass for all 12 runs, the order of 50 updates in each, uniqueness per image/stage, and coverage of 48 fixed controls. Original initial/final checkpoint SHA-256 values must match the protocol. All questions, gold, and teacher/student answers are retained in answers.csv. The original benchmark is not used for checkpoint selection.
 
-本轮是单 seed、单图 overfit 与极小 holdout 的机制诊断，不能替代多图任务均衡训练、重复 seed、完整独立评测。局部 bias、Adam 和较高保留率均为与原实验不同的干预，必须分别解释。
+This is single-seed/single-image overfitting with tiny held-out mechanism diagnostics, not task-balanced multi-image training, repeated seeds, or full independent evaluation. Local bias, Adam, and larger budgets are separate interventions.
 '''
     drows=[]
     for r in directions['records']:
@@ -221,15 +221,15 @@ flowchart LR
             drows.append([r['precision'],r['step_norm'],f(r['kl']),f(r['actual_delta']),
                 f(r['first_order_predicted_delta']),f(r['compressed_elements_changed_fraction'])])
     text+='''
-## 8. 数值精度与小步更新
+## 8. Numerical Precision and Small Updates
 
-从原生成器初始化出发，沿该精度下 KL 的单位负梯度方向移动指定的**全部参数 L2 距离**，逐次复位，不是连续训练。固定同一 BF16 cache source 与 BF16 teacher 目标。FP32 模式仅把同一 BF16 checkpoint 的权重值转为 FP32 后计算 student，不是加载另一份高精度预训练权重。各模式从各自基线计算 delta，不能比较绝对 KL 来判断模型质量。
+Starting from the original generator initialization, move a specified **total-parameter L2 distance** along the unit negative KL gradient at each precision. Reset between trials; this is not sequential training. BF16 cache source and teacher target are fixed. FP32 mode converts the same BF16 checkpoint values to FP32 for student computation, rather than loading separate high-precision pretrained weights. Deltas use each mode's own baseline; absolute KL across modes does not establish model quality.
 
-'''+table(['Student 精度','参数步长 L2','KL','实际 delta（0步为重复差）','一阶预测 delta','压缩特征元素变化比例'],drows)+'''
+'''+table(['Student accuracy','Parameter-step L2 norm','KL','Measured delta (step 0: repeated-forward difference)','First-order predicted delta','Fraction of changed compressed-feature elements'],drows)+'''
 
-BF16 的 cast 会使参数到前向 loss 的映射分段、非光滑；有限差分与反传的一阶预测在非常小步长可能不一致。这个审计只回答当前图像与局部步长的数值问题，不证明 FP32 是完整训练的最佳配置。
+BF16 casts make the parameter-to-forward-loss map piecewise and nonsmooth; finite differences and first-order backpropagation predictions can disagree at very small steps. This audits one image and local scales, not whether FP32 is optimal for full training.
 
-精度控制保留了原生 BF16 模型的 FP32 RoPE buffers。早期版本直接对全模型 `.to(bfloat16)`，会额外改变这些 buffers，因此该版本的数值不用于结论；记录保留在 `precision_invalid_buffer_cast/`。这只是精度审计脚本中已修正的问题，原正式训练没有做该额外 dtype cast。
+Precision controls retain native BF16 model’s FP32 RoPE buffers. The early version applied to the entire model  `.to(bfloat16)`also changes these buffers, so that version is excluded from conclusions; records:  `precision_invalid_buffer_cast/`. This was repaired in the precision-audit script only; original formal training never used that additional dtype cast.
 '''
     grows=[]
     for r in task_grads:
@@ -238,17 +238,17 @@ BF16 的 cast 会使参数到前向 loss 的映射分段、非光滑；有限差
         grows.append([r['task'],r['id'],r['state'],f(g['prediction']),f(g['entropy']),f(g['collapse']),
             f(g['collapse']/max(g['prediction'],1e-30)),f(c['prediction__entropy']),f(c['prediction__collapse']),f(dot)])
     text+='''
-## 9. 跨任务梯度审计
+## 9. Cross-Task Gradient Audit
 
-不能把一张 fit 图像的梯度方向推广到全部数据，因此另对同一 cohort 的 8 张图像（7 个任务）分别检查原生成器 initial 与原 20k final 两个状态。不做训练，不对各图像的梯度向量先平均；报告的是每图 norm 与 cosine，不能解释成原 batch=36 的确切全局梯度。
+A fit-image gradient cannot be generalized to the entire dataset. The original generator is therefore audited at initial and original-20k-final states on 8 images across 7 tasks. No training or prior averaging of image gradients is performed. Reported per-image norms/cosines are not the exact global gradient of the original batch=36 training.
 
-'''+table(['任务','问题 ID','状态','||g_KL||','||g_H||','||g_C||','C/KL norm 比','cos(KL,H)','cos(KL,C)','dot(KL,total)'],grows)+'''
+'''+table(['Task','Question ID','Status','||g_KL||','||g_H||','||g_C||','C/KL gradient-norm ratio','cos(KL,H)','cos(KL,C)','dot(KL,total)'],grows)+'''
 
-末列由三个 norm 与 cosine 还原：dot(g_KL,g_total)=||g_KL||²+||g_KL||||g_H||cos(KL,H)+||g_KL||||g_C||cos(KL,C)。负值表示沿负 total 梯度的一阶小步**增加** KL；正的全局裁剪系数不会改变这个符号。这里是一阶梯度诊断，不能保证 BF16 的实际离散小步严格符合近似。
+Final column reconstructed from three norms/cosines: dot(g_KL,g_total)=||g_KL||²+||g_KL||||g_H||cos(KL,H)+||g_KL||||g_C||cos(KL,C). Negative values mean that first-order descent along total increases KL; a positive global clipping multiplier cannot change that sign. BF16 discrete small updates need not exactly follow this first-order approximation.
 '''
     byname={r['variant']:r for r in results}
     factorial_rows=[]
-    for objective,clip_name,free_name in [('完整 loss','original_all_sgd_clip001','all_sgd_no_clip'),('KL-only','kl_sgd_clip001','kl_sgd_no_clip')]:
+    for objective,clip_name,free_name in [('Full loss','original_all_sgd_clip001','all_sgd_no_clip'),('KL-only','kl_sgd_clip001','kl_sgd_no_clip')]:
         a=byname[clip_name]['fit_final'];b=byname[free_name]['fit_final']
         factorial_rows.append([objective,f(a['prediction']),a['student_prediction'],f(b['prediction']),b['student_prediction']])
     k=byname['kl_sgd_no_clip'];free=byname['free_dense_kl_adam'];local=byname['local_bias_all_adam'];dense=byname['kl_adam_keep025']
@@ -260,64 +260,64 @@ BF16 的 cast 会使参数到前向 loss 的映射分段、非光滑；有限差
         return g['prediction']**2+g['prediction']*g['entropy']*c['prediction__entropy']+g['prediction']*g['collapse']*c['prediction__collapse']
     total_conflicts=sum(total_dot(r)<0 for r in initial_grads)
     text+='''
-## 10. 证据更新：哪些解释得到支持，哪些不能成立
+## 10. Updated Evidence: Supported and Unsupported Explanations
 
-**当前问题首先出在压缩器的优化设置及结构约束组合，不能优先归咎于 encoder 或 Qwen3-1.7B 容量。单纯取消裁剪、单纯改 Adam、单纯增加 token 预算，都不是这组实验的充分修复。**
+**The main issue is the combination of compressor optimization and structural constraints, not evidence against the encoder or Qwen3-1.7B capacity. Removing clipping alone, changing to Adam alone, or increasing the token budget alone is insufficient in these tests.**
 
-### 10.1 同一 SGD、同一初始值下的 2×2 对照
+### 10.1 A 2×2 Comparison with the Same SGD and Initialization
 
-'''+table(['优化目标','clip=.01：末 KL','clip=.01：生成','无裁剪：末 KL','无裁剪：生成'],factorial_rows)+'''
+'''+table(['Optimization objective','clip=.01: final KL','clip=.01: generation','Unclipped: final KL','Unclipped: generation'],factorial_rows)+'''
 
-四组均 lr=.001、同一训练图像、50 步、保留率 10%。KL-only 无裁剪的 KL 从 '''+f(k['fit_initial']['prediction'])+' 降至 '+f(k['fit_final']['prediction'])+'''，独立生成答对；完整 loss 无裁剪仍未答对。该对照支持“更新幅度”和“损失组合”共同影响当前失败；不是靠增大 SGD 学习率数值就能充分解决。原强裁剪对全部 1,112 步的约束及参数变化仍以原 failure_audit 为准。
+All four use LR=.001, the same training image, 50 updates, and 10% retention. Unclipped KL-only changes KL from  '''+f(k['fit_initial']['prediction'])+' decreases to  '+f(k['fit_final']['prediction'])+''', with independently generated correct answers, whereas unclipped full loss still fails. Update magnitude and objective composition jointly matter; increasing SGD LR alone is insufficient. Original clipping/update evidence across 1,112 steps remains in failure_audit.
 
-### 10.2 正则的方向与初始化相互影响
+### 10.2 Regularizer Direction Interacts with Initialization
 
-在 8 张诊断图像的原初始化上，collapse/KL 参数梯度范数比的中位数为 **'''+f(st.median(ratios))+'**，范围 **'+f(min(ratios))+'～'+f(max(ratios))+'**；其中 **'+str(conflicts)+'/8** 张图像的 collapse 与 KL 梯度 cosine 为负，**'+str(total_conflicts)+'''/8** 张图像的完整 total 梯度与 KL 梯度点积为负，即 total 的一阶下降方向会增大预测 KL。这不是看 loss 数值大小得到的判断，而是直接的分项梯度测量；只对这 8 张条件筛选图像成立，不能冒充整个训练集的统计。
+Original-initialization median collapse/KL gradient-norm ratio over 8 images: **'''+f(st.median(ratios))+'**, range **'+f(min(ratios))+'～'+f(max(ratios))+'**; of which **'+str(conflicts)+'/8** images have negative collapse/KL gradient cosine; **'+str(total_conflicts)+'''/8** images have a negative dot product between full-total and KL gradients: first-order total descent increases prediction KL. This is measured component-gradient evidence, not an inference from loss magnitudes. It applies to these 8 conditionally selected images, not the full dataset.
 
-局部 bias + 完整 loss 的末 KL 为 '''+f(local['fit_final']['prediction'])+'，collapse='+f(local['fit_final']['collapse'])+'''，能拟合当前问题。这说明不能把 entropy/collapse 全盘判为无效；它们与 P 的初始支持结构、特征尺度、优化器和梯度裁剪存在相互作用。当前稠密初始化下完整 loss 优先找到的低 collapse 解，未必保留文档证据。
+Final local-bias + full-loss KL:  '''+f(local['fit_final']['prediction'])+', collapse='+f(local['fit_final']['collapse'])+''', fitting the current question. Entropy/collapse are not universally ineffective; they interact with initial support, feature scale, optimizer, and clipping. Low-collapse solutions favored by current dense initialization may not preserve evidence.
 
-### 10.3 高熵不是失败的充分条件，低熵也不是成功的保证
+### 10.3 High Entropy Does Not Prove Failure; Low Entropy Does Not Guarantee Success
 
-自由 P 的末 KL 为 '''+f(free['fit_final']['prediction'])+'、行熵 '+f(free['fit_final']['entropy'])+'''，也能答对单题；KL-only SGD 的末行熵仍为 '''+f(k['fit_final']['entropy'])+'''。因此应修正“行熵高就必然答不对”的过强解释。另一方面，dense KL-only Adam 在 25% 预算下末行熵仅 '''+f(dense['fit_final']['entropy'])+'，最大列质量却为 '+f(dense['fit_final']['collapse'])+' / '+str(dense['fit_final']['compressed_tokens'])+'''，出现大量输出行集中同一源 token 的退化，仍未答对。仅看 entropy 或单题 KL 都不能确认通用压缩质量。
+Final free-P KL:  '''+f(free['fit_final']['prediction'])+', row entropy  '+f(free['fit_final']['entropy'])+''', also fits one question; final KL-only-SGD row entropy remains  '''+f(k['fit_final']['entropy'])+'''. The claim that high row entropy inevitably prevents correct answers is therefore too strong. Conversely, at 25% the final row entropy of dense KL-only Adam is only  '''+f(dense['fit_final']['entropy'])+', but maximum column mass is  '+f(dense['fit_final']['collapse'])+' / '+str(dense['fit_final']['compressed_tokens'])+''', with many rows collapsing onto one source token and answers still incorrect. Entropy or single-question KL alone cannot establish general compression quality.
 
-自由 P 的自由度与优化器不同，成功只能证明该图像的预算和 decoder 路径允许找到可用解，不能单独证明原生成器存在表达能力缺陷。KL-only SGD 也能拟合，更不支持“原生成器完全学不动”的结论。
+Free P has different degrees of freedom/optimizer. Success proves a usable solution exists for that image/budget/decoder, not an isolated generator-capacity defect. KL-only SGD also fits, ruling out complete generator untrainability.
 
-### 10.4 10% 预算困难，但不能把失败全归因于预算
+### 10.4 The 10% Budget Is Difficult, but Does Not Explain Every Failure
 
-固定取样/均值池化的保留率对照见第 6 节。高保留率下局部保留原 token 能改善一些图像；稠密全局混合即使增加行数，也不自动恢复局部文字。10% 下的单图成功排除了“该图预算绝对不可能”的解释，不能证明任意文档问题在该预算下都能恢复。
+See Section 6 for fixed-selection/mean controls. Higher-retention local preservation helps some images; more global dense rows do not automatically restore text. Single-image 10% fitting disproves impossibility for that image only, not guaranteed recovery of arbitrary document QA.
 
-### 10.5 尚未解决的是多图泛化
+### 10.5 Multi-Image Generalization Remains Unresolved
 
-单图学会输出 38 可能只保住了回答该问题所需的局部信号，甚至利用了针对该 teacher 输出的捷径；它不是整页文字和所有潜在问题均被保留的证据。七题 holdout 的首末作答与 KL 必须与 fit 分开看，不能以训练题满分宣称方案已修复。当前不据此选择或替换原正式模型。
+Learning to answer 38 on one image may preserve only the local signal for that question, or exploit a shortcut specific to that teacher response. It does not show preservation of the full page or all possible questions. Inspect held-out initial/final answers and KL separately from fitting results; perfect training accuracy does not establish a repaired method. No formal model is selected or replaced on this evidence.
 
-25% 和 50% 的 dense KL-only Adam 确实各有 holdout 均分 **14.29→28.57** 的上涨：两组均来自同一道 WTQ 题，由回答 `1` 变为正确答案 `10`，其余六题得分不变。这一改善保留在结果中，不应说“所有设置都没有提升”。但其 holdout 平均 KL 分别由 **1.5030→1.9077**、**1.5189→1.8846** 变差，且矩阵发生单列集中、训练题仍错。七题中多答对一题不足以推断稳定泛化，也不能据此忽略矩阵退化。
+Dense KL-only Adam at 25% and 50% each improves held-out mean **14.29→28.57**; both gains come from the same WTQ question, whose answer changes from  `1` changes to the correct answer `10` , with the other six scores unchanged. Retain these gains rather than claiming that no setting improves anything. However, held-out mean KL worsens from **1.5030→1.9077** and **1.5189→1.8846**, with single-column concentration and an incorrect training answer. One additional correct answer among seven does not establish stable generalization or justify ignoring matrix degeneration.
 
-建议下一轮先做训练集内图像互斥、任务均衡的小规模多图实验，以同图多问题约束避免只记单个答案：对比 dense KL-only SGD 与 local-bias + 完整 loss；分别监控生成分数、KL、collapse/m、梯度范数和 BF16 前向变化。先在 50%/25%/10% 分别验证，不混报预算；使用独立验证生成结果选择模型，最后再做完整评测。现有证据不要求先解冻 LLM，也不支持直接重复原 20k 原设置。
+Next, run task-balanced multi-image experiments with image-disjoint training-source splits and multiple questions per image to discourage memorizing one answer. Compare dense KL-only SGD against local-bias + full loss, monitoring generation scores, KL, collapse/m, gradient norms, and BF16 forward changes. Test 50%/25%/10% separately, select on independent development generation, and only then run the full benchmark. Current evidence does not require unfreezing the LLM or justify repeating the original 20k recipe unchanged.
 '''
     full_failures=sum(r['student_score']==0 for r in full_budget)
     lead='''
-主要发现：输入/缓存/causal shift 审计通过；**不减少 token、不缩短 prompt，仅经过原始稠密 P 混合，'''+str(full_failures)+'''/3 道 teacher 正确的题变为零分**。同一 SGD 下，KL-only 去除强裁剪可单图拟合，而完整 loss 仅取消裁剪仍失败；局部 bias 配合完整 loss 也能拟合。梯度方向冲突、稠密矩阵退化与小步 BF16 舍入都获得直接诊断证据。**单图成功不等于独立图像性能恢复，详见第 10～11 节。**
+Main finding: input/cache/causal-shift audits pass; **without token reduction or prompt shortening, original dense-P mixing alone makes '''+str(full_failures)+'''/3 questions answered correctly by the teacher fall to zero**. With the same SGD, removing strong clipping enables single-image fitting under KL-only, whereas removing clipping alone still fails under the full loss. A local bias can also enable fitting with the full loss. Diagnostics directly support gradient conflict, dense-matrix degeneration, and BF16 rounding at small updates. **Single-image fitting does not establish recovery on independent images; see Sections 10–11.**
 '''
-    text=text.replace('\n## 入口与原始数据',lead+'\n## 入口与原始数据',1)
+    text=text.replace('\n## Entry Points and Raw Records',lead+'\n## Entry Points and Raw Records',1)
     fbrows=[[r['task'],r['id'],r['tokens'],r['teacher_prediction'],r['student_prediction'],f(r['prediction']),f"{100*r['student_score']:.2f}",f(r['entropy_fraction'])] for r in full_budget]
     text+='''
-## 11. 完整预算对照：没有减少 token，混合本身会怎样
+## 11. Full-Budget Control: Mixing Without Token Reduction
 
-对 cohort 的两张 DocVQA 和一张 ChartQA 图像，将原始生成器的保留率设为 1；m=n，图像占位块、问题 prompt 及连续 position 长度与 teacher 完全相同。原生成器此时 pool kernel=1，但 softmax(QKᵀ/sqrt(dc)) **不等于单位阵**。比较同预算的原始 X（teacher）与生成器混合后的 PX；生成器未训练。
+For two DocVQA and one ChartQA images, set the original generator to retention=1: m=n, with identical image placeholders, question prompt, and contiguous position length to teacher. Its pooling kernel is then 1, but softmax(QKᵀ/sqrt(dc)) **is not identity**. Compare same-budget original X (teacher) and mixed PX without training the generator.
 
-'''+table(['任务','问题 ID','n=m','原始 teacher','混合后生成','KL','混合后分数','行熵/log(n)'],fbrows)+'''
+'''+table(['Task','Question ID','n=m','Original teacher','Generation after mixing','KL','Score after mixing','Row entropy / log(n)'],fbrows)+'''
 
-这个对照可以检验“序列缩短是唯一问题”的解释，但不能证明缩短位置和预算没有额外影响，也不能将 keep=1 的 kernel=1 与 keep=.1 的 fractional max kernel=3 当成完全相同条件。
+This tests whether shortening alone explains failure, but does not rule out extra positional/budget effects. keep=1/kernel=1 and keep=.1/fractional-max kernel=3 are not identical conditions.
 '''
     text+='''
-三题的原始 teacher 均正确，混合后 '''+str(full_failures)+''' 题为零分。就这些图像而言，初始化产生的混合本身已足以破坏作答，不能把退化全归因于 90% reduction 或缩短文本位置。原论文共享 Wq=Wk 的理论初始化并不保证在实际 UND 特征统计和当前位置/pool 参数化下近似保留原 token；这是一项迁移差异的实证，不能推断论文原模型也存在相同问题。
+The original teacher answers all three correctly; after mixing,  '''+str(full_failures)+'''  questions score zero. On these images, initialization-induced mixing alone already breaks answers; degradation cannot be attributed entirely to 90% reduction or shorter text positions. The paper's shared Wq=Wk theoretical initialization does not guarantee token preservation under actual UND feature statistics and current position/pooling parameterization. This is evidence of a transfer difference, not evidence that the paper's original model has the same problem.
 '''
     text+='''
-## 12. 同一图像的矩阵对比
+## 12. Compression Matrices for the Same Image
 
-![压缩矩阵](../artifacts/meta_compress_diagnosis/matrices/matrix_comparison.png)
+![Compression matrix](../artifacts/meta_compress_diagnosis/matrices/matrix_comparison.png)
 
-颜色为 log10(P)，统一范围 [-6,0]；为避免单列峰值在缩图时消失，显示时每 3 个源 token 取最大权重，**仅显示降采样，不改变保存的 P 或任何 loss**。横轴为原生 2×2 block 序列位置，纵轴为输出 token。各面板分别标注 m，25% 保留率的输出行数与其他面板不同。原始矩阵见 [`matrices/`](../artifacts/meta_compress_diagnosis/matrices/complete.json)。可直接 `torch.load(path, weights_only=True)['P']` 读取，不需要加载 decoder。
+Color is log10(P), with a shared range [−6,0]. For visualization, take the maximum over each 3 source tokens so single-column peaks survive resizing. **This downsamples the display only; saved P and all losses are unchanged.** Horizontal axis: native 2×2-block sequence positions; vertical: output tokens. Panels show their own m; 25% retention has a different row count. Original matrices: [`matrices/`](../artifacts/meta_compress_diagnosis/matrices/complete.json). Directly use  `torch.load(path, weights_only=True)['P']` readout, without loading a decoder.
 '''
     (ROOT/'docs/METACOMPRESS_INTERVENTION_RESULTS.md').write_text(text)
     print(json.dumps({'variants':len(results),'updates':600,'records':len(records),'report':'docs/METACOMPRESS_INTERVENTION_RESULTS.md'},ensure_ascii=False))

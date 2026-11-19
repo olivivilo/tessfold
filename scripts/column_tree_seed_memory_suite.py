@@ -64,7 +64,7 @@ def prepare():
  save(REG,dict(registered_utc=now(),models=models,stages=stages,protocol=protocol,
   source_sha256={p:sha(ROOT/p) for p in OLD_SOURCES+NEW_SOURCES},data_sha256={p:sha(ROOT/p) for p in paths},
   old_registrations_sha256={p:sha(ROOT/p) for p in ['artifacts/compression_lab_v2/column_tree_full_20261108/registration.json','artifacts/compression_supplement_20261111/registration.json']},
-  new_full_trainings=14,reused_models=10,request='自适应列划分共同三seed四预算与问题树比较，分阶段设备内存峰值与平均'))
+  new_full_trainings=14,reused_models=10,request='Adaptive Column versus question-tree across shared three seeds/four budgets, with stagewise peak/mean device memory'))
  save(BASE/'state.json',dict(created_utc=now(),stages={s['id']:dict(status='registered',jobs=[]) for s in stages}))
  print('Registered24models:10reused+14fresh;30newstages incl technical smoke+memory.')
 

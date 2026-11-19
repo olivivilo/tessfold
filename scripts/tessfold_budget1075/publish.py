@@ -24,10 +24,10 @@ def main():
     tasks = ['DocVQA', 'InfoVQA', 'ChartQA', 'OCRBench', 'DeepForm', 'KLC', 'WTQ', 'DT-VQA']
     order = ['REF'] + [f'{kind}_r{ratio:g}' for ratio in [.1, .25, .5, .75] for kind in ['Column', 'Tree']]
     label = lambda identity: identity.replace('Column_', 'StableColumn_') if models.get(identity, {}).get('allocation') else identity
-    doc = ['# 原生8B：四个token预算的最终完整对照', '', f'更新时间UTC：{now()}。10%/75%扩展已通过完整审计。', '',
-           '[新增预算完整训练、曲线及结果](TESSFOLD_8B_10_75_RESULTS.md) · [25%/50%原报告](TESSFOLD_FINAL_RESULTS.md)', '',
-           '相同原生Qwen3-VL-8B-Instruct，基模全部冻结，仅训练P。20k训练QA×4epochs，固定56QA dev选模，23,565QA正式测试。每配置单seed。DeepForm/KLC为DUE corpus F1，其他任务为原生指标。StableColumn使用固定图像detail划分，是明确的结构变体，不能将全部差异归因于预算。', '',
-           '|模型|保留率|DocVQA|InfoVQA|ChartQA|OCRBench|DeepForm F1|KLC F1|WTQ|DT-VQA|macro|与teacher差pp|',
+    doc = ['# Native 8B: Final Full Comparison Across Four Token Budgets', '', f'Updated (UTC):{now()}. The 10%/75% extension passed the complete audit.', '',
+           '[New-budget full training, curves, and results](TESSFOLD_8B_10_75_RESULTS.md) · [Original 25%/50% report](TESSFOLD_FINAL_RESULTS.md)', '',
+           'Same native Qwen3-VL-8B-Instruct, fully frozen except P. Train on 20k QA × 4 epochs, select on 56 fixed development QA, and formally test on 23,565 QA. One seed/configuration. DeepForm/KLC use DUE corpus F1; others use native metrics. StableColumn\'s fixed image-detail partitioning is an explicit architectural variant, so not all differences are attributable to budget.', '',
+           '|Model|Retention fraction|DocVQA|InfoVQA|ChartQA|OCRBench|DeepForm F1|KLC F1|WTQ|DT-VQA|macro|Difference from teacher (pp)|',
            '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     latex = ['% Native DUE corpus F1 for KLC/DeepForm; all others task native metrics.',
              r'\begin{tabular}{lrrrrrrrrrr}', r'\toprule',
@@ -43,9 +43,9 @@ def main():
     save(BASE / 'all_budget_quality.json', dict(time=now(), results=results, models=models, order=order))
     (BASE / 'paper').mkdir(exist_ok=True)
     (BASE / 'paper/all_budget_quality.tex').write_text('\n'.join(latex)+'\n')
-    doc += ['', '## 实际冷请求部署效率', '',
-            '每个预算使用所在实验同期REF作同题配对：90题、3次重复。两个批次的绝对硬件耗时可能不同，加速比均相对各自REF，不将跨批次时差归因于预算。以下natural EOS；fixed64及分层结果见原始statistics.json。', '',
-            '|模型|保留率|E2E加速|95%页面CI|TTFT加速|95%页面CI|', '|---|---:|---:|---|---:|---|']
+    doc += ['', '## Measured Cold-Request Deployment Efficiency', '',
+            'Each budget pairs with its contemporaneous REF on 90 questions/3 repeats. Absolute timings can differ between batches; speedups use each batch’s own REF. Do not attribute cross-batch timing differences to budget. Natural EOS below; fixed64/strata in statistics.json.', '',
+            '|Model|Retention fraction|E2E speedup|95% page-level CI|TTFT speedup|95% page-level CI|', '|---|---:|---:|---|---:|---|']
     timing = {}
     memory = {}
     for directory in [PARENT, BASE]:
@@ -59,9 +59,9 @@ def main():
         v = timing[identity]
         ci, ti = v['e2e_bootstrap_95_ci'], v['ttft_bootstrap_95_ci']
         doc.append(f'|{label(identity)}|{models[identity]["ratio"]:.0%}|{v["e2e_speedup"]:.3f}×|[{ci[0]:.3f},{ci[1]:.3f}]|{v["ttft_speedup"]:.3f}×|[{ti[0]:.3f},{ti[1]:.3f}]|')
-    doc += ['', '## 独立内存测量', '',
-            '独立1ms内存采样，含常驻模型权重；不与无采样计时混算，生成token已审计一致。视觉KV为逻辑子段，不能推导整卡显存或最大并发按比例降低。', '',
-            '|模型|全流程峰值GiB|下游峰值GiB|视觉KV中位MiB|', '|---|---:|---:|---:|']
+    doc += ['', '## Independent Memory Measurements', '',
+            'Independent 1 ms memory sampling includes resident weights and remains separate from unsampled timing; generated tokens match. Logical visual KV does not imply proportional device-memory/concurrency reduction.', '',
+            '|Model|Full-pipeline peak (GiB)|Downstream peak (GiB)|Median visual KV (MiB)|', '|---|---:|---:|---:|']
     for identity in order[1:]:
         v = memory[identity]
         doc.append(f'|{label(identity)}|{v["full_max_gib"]:.4f}|{v["downstream_max_gib"]:.4f}|{v["visual_kv_median_mib"]:.3f}|')
@@ -98,21 +98,21 @@ def main():
     for extension in ['pdf', 'png']:
         fig.savefig(BASE / f'figures/all_budget_quality.{extension}', dpi=180)
     plt.close(fig)
-    doc += ['', '图中Column曲线包含标为StableColumn的结构变体，应结合上表解释；不能视为严格控制结构的预算消融。', '',
-            '![四预算完整分数](../artifacts/tessfold_acceleration_20261115/budget1075/figures/all_budget_quality.png)', '',
-            '[论文LaTeX表](../artifacts/tessfold_acceleration_20261115/budget1075/paper/all_budget_quality.tex) · [新增预算gold/teacher/student掉分案例CSV](../artifacts/tessfold_acceleration_20261115/budget1075/error_analysis/largest_losses.csv)', '',
-            '案例CSV每模型每任务取掉分最大32题，非随机总体样本，不用于选模型。完整逐题预测见新增实验qwen_formal/rows.rank*.jsonl。']
+    doc += ['', 'Column curves include a labeled StableColumn structural variant. Interpret with the table; this is not an architecture-controlled budget ablation.', '',
+            '![Full four-budget scores](../artifacts/tessfold_acceleration_20261115/budget1075/figures/all_budget_quality.png)', '',
+            '[Manuscript LaTeX tables](../artifacts/tessfold_acceleration_20261115/budget1075/paper/all_budget_quality.tex) · [New-budget gold/teacher/student largest-drop examples CSV](../artifacts/tessfold_acceleration_20261115/budget1075/error_analysis/largest_losses.csv)', '',
+            'Example CSV selects 32 largest drops/model/task, not a random population sample or selection set. Full predictions: new qwen_formal/rows.rank*.jsonl.']
     (ROOT / 'docs/TESSFOLD_8B_ALL_BUDGETS.md').write_text('\n'.join(doc)+'\n')
     for path in [ROOT / 'README.md', ROOT / 'docs/CURRENT_PROGRESS.md']:
         content = path.read_text()
         if path.name == 'README.md':
-            content = content.replace('原生8B的10%／75%保留率完整训练评测进行中。', '原生8B的10%／75%保留率完整训练评测及审计已完成。')
+            content = content.replace('Native8B 10%/75% full training/evaluation in progress.', 'Native8B 10%/75% full training, evaluation, and audits completed.')
         else:
-            content = content.replace('**本扩展尚未完成**', '**本扩展全部训练、评测及最终审计已完成**')
+            content = content.replace('**This extension is not yet complete**', '**All extension training, evaluation, and final audits are complete**')
         link = 'docs/TESSFOLD_8B_ALL_BUDGETS.md' if path.name == 'README.md' else 'TESSFOLD_8B_ALL_BUDGETS.md'
         if f']({link})' not in content:
             at = content.find('\n\n')
-            content = content[:at] + f'\n\n[原生8B四预算最终对照]({link})' + content[at:]
+            content = content[:at] + f'\n\n[Final native 8B four-budget comparison]({link})' + content[at:]
         path.write_text(content)
     save(BASE / 'publication.json', dict(time=now(), source_sha256=sha(__file__), error_cases=len(error_rows),
         final_audit_sha256=sha(BASE / 'final_audit.json'), report='docs/TESSFOLD_8B_ALL_BUDGETS.md'))
@@ -123,7 +123,7 @@ def main():
     tmp=ROOT/'.tessfold.zip.tmp'
     manifest=[]
     with zipfile.ZipFile(tmp,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6,allowZip64=True) as z:
-        z.writestr('README.md', '# TessFold 实验结果\n\n四预算总入口：docs/TESSFOLD_8B_ALL_BUDGETS.md\n新增预算训练详情：docs/TESSFOLD_8B_10_75_RESULTS.md\n此前系统实验：docs/TESSFOLD_FINAL_RESULTS.md\n\n包含结果、逐题预测、图表、日志及SHA-256清单；不含权重、数据集或特征缓存。保留原目录结构。\n')
+        z.writestr('README.md', '# TessFold Experimental Results\n\nFour-budget entry: docs/TESSFOLD_8B_ALL_BUDGETS.md\nNew-budget training details: docs/TESSFOLD_8B_10_75_RESULTS.md\nPrevious system experiments: docs/TESSFOLD_FINAL_RESULTS.md\n\nContains results, predictions, figures, logs, and SHA-256 manifest, excluding weights, datasets, and feature caches. Original layout retained.\n')
         for path in sorted(files):
             data=path.read_bytes();name=path.relative_to(ROOT).as_posix();z.writestr(name,data)
             manifest.append(dict(path=name,bytes=len(data),sha256=hashlib.sha256(data).hexdigest()))

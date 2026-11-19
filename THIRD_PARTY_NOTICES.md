@@ -1,40 +1,29 @@
-# 引用与第三方依赖
+# Attribution and Third-Party Dependencies
 
-本仓库是研究代码的源码整理。引用理论来源、重用具体软件和使用预训练权重是不同事项。
-方法文档与论文应分别交代以下内容。
+This repository is a source release of research code. Attribution of methodological ideas, reuse of software, and use of pretrained weights are distinct obligations. Method descriptions and papers should identify each explicitly.
 
 ## MetaCompress
 
-Yi Wang et al. *Rethinking Token Reduction for Large Vision-Language Models*.
-CVPR 2026. [论文原文](https://openaccess.thecvf.com/content/CVPR2026/html/Wang_Rethinking_Token_Reduction_for_Large_Vision-Language_Models_CVPR_2026_paper.html)。
+Yi Wang et al. *Rethinking Token Reduction for Large Vision-Language Models*. CVPR 2026. [Paper](https://openaccess.thecvf.com/content/CVPR2026/html/Wang_Rethinking_Token_Reduction_for_Large_Vision-Language_Models_CVPR_2026_paper.html).
 
-本项目借鉴“用压缩矩阵进行 token 凸组合”与 decoder prediction preservation。
-Tree/Column 的空间分区生成器不是 MetaCompress 原版；最终默认训练只使用 KL，
-不应写成同时使用论文中行熵的完整原 loss。历史对照实现独立保留在源码中。
+This project draws on compression matrices for convex token aggregation and preservation of decoder predictions. The Tree/Column spatial partition generators differ from the original MetaCompress generator. The final default objective uses KL alone and should not be described as the complete original objective with row entropy. Historical comparison implementations are retained separately.
 
 ## MonkeyOCRv2
 
-Yuliang Liu et al. *MonkeyOCRv2: A Visual-Text Foundation Model for Document AI*.
-[arXiv:2607.11562](https://arxiv.org/abs/2607.11562)。
+Yuliang Liu et al. *MonkeyOCRv2: A Visual-Text Foundation Model for Document AI*. [arXiv:2607.11562](https://arxiv.org/abs/2607.11562).
 
-官方预训练来源：`zenosai/MonkeyOCRv2-B-Und`。官方项目声明代码与模型为 Apache 2.0；
-数据标注和图像另有条款。第三方权重和远程模型实现通过明确下载操作取得，未附在本仓库。
+The official pretrained model is distributed as `zenosai/MonkeyOCRv2-B-Und`. The upstream project states that its code and model weights are released under Apache 2.0; dataset annotations and source images have separate terms. Third-party weights and remote model implementations are obtained through explicit downloads and are not included here.
 
-## Qwen 与评测工具
+## Qwen and evaluation tools
 
-原生模型来自 `Qwen/Qwen3-VL-8B-Instruct`，固定 revision 见下载实现。
-UND 保持官方原 Qwen3-1.7B 解码器。Qwen、Transformers、PyTorch、DUE evaluator
-等软件及权重受各自许可证约束。DUE corpus F1 和 WTQ denotation 使用 due-evaluator。
-完整相关工作书目见 `docs/references.bib`；请按最终实际方法选取引用，不自动宣称创新优先权。
+The native backbone is `Qwen/Qwen3-VL-8B-Instruct`; its pinned revision is specified in the downloader. The UND configuration retains the official Qwen3-1.7B decoder. Qwen, Transformers, PyTorch, DUE evaluator, and their associated software or weights remain subject to their respective licenses. DUE corpus F1 and WTQ denotation scoring use due-evaluator.
 
-## 可选第三方 baseline
+The related-work bibliography is available in `docs/references.bib`. Cite the methods actually used; the bibliography alone does not establish novelty or priority.
 
-S²Prune 的适配代码仍在 `vqa/supplement_s2prune.py`；其上游 allocation 文件未随本仓库
-分发。相关历史 baseline 需要依照原脚本登记的上游来源另行取得，不是核心 Tree/Column
-运行所需依赖。官方 ms-swift 微调同样需要单独安装上游软件。
+## Optional third-party baselines
 
-## 本项目授权状态
+The S²Prune adapter is retained in `vqa/supplement_s2prune.py`, but its upstream allocation implementation is not redistributed. Historical baseline runs require obtaining that implementation from the upstream source recorded by their scripts. It is not required for core Tree/Column execution. Official ms-swift fine-tuning likewise requires a separate upstream installation.
 
-原工作目录没有给本项目新增源码指定独立的开源许可证。本次整理保留这一状态，
-没有替权利人新增 MIT/Apache 等授权，也没有捏造作者姓名、论文 DOI 或 GitHub 地址。
-推送到 GitHub 前，应由权利人决定项目 LICENSE；外部依赖的既有许可不受此影响。
+## Project licensing status
+
+The original working directory did not specify a separate open-source license for the project's added code. This preparation preserves that status and does not assign MIT, Apache, or other licensing terms on behalf of the rights holder. No author identity, paper DOI, or repository URL has been invented. The rights holder should determine the project LICENSE before publication; existing third-party licenses remain unchanged.

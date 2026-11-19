@@ -70,16 +70,29 @@ def average_seed_maps(pairs):
 def export_xlsx(results,pairs,mechanisms,timing,budgets,time_rows):
     import openpyxl
     wb=openpyxl.load_workbook(ROOT/'feedback/paper_experiment_tables.xlsx')
-    s=wb['T1 主结果']
+    # Accept the original workbook's serialized sheet names, but export English
+    # titles. Unicode escapes preserve legacy identifiers, not displayed prose.
+    legacy_titles = {
+        'T1 Main results': 'T1 \u4e3b\u7ed3\u679c',
+        'T2 Historical results': 'T2 \u5386\u53f2\u7ed3\u679c',
+        'T3 Mechanism comparisons': 'T3 \u673a\u5236\u5bf9\u7167',
+        'T4 Same-page question swap': 'T4 \u540c\u9875\u6362\u9898',
+        'T5 System efficiency': 'T5 \u7cfb\u7edf\u6548\u7387',
+        'T6 Paired comparisons and seeds': 'T6 \u914d\u5bf9\u4e0e\u79cd\u5b50',
+    }
+    for title, legacy in legacy_titles.items():
+        if legacy in wb and title not in wb:
+            wb[legacy].title = title
+    s=wb['T1 Main results']
     # Replace historical screenshot estimates with unrounded machine aggregates.
     for row in range(6,34):
         method=s.cell(row,1).value;ratio=s.cell(row,3).value
         if method is None or not isinstance(ratio,(int,float)):continue
         key=(method,float(ratio),20261105)
         if key not in results:continue
-        r=results[key];s.cell(row,5,'正式逐题核对');s.cell(row,6,r['macro']);s.cell(row,7,r['macro']/57.00409130135063)
+        r=results[key];s.cell(row,5,'Formal per-question verification');s.cell(row,6,r['macro']);s.cell(row,7,r['macro']/57.00409130135063)
         for col,t in enumerate(TASKS,8):s.cell(row,col,r['by_task'].get(t))
-    s=wb['T2 历史结果']
+    s=wb['T2 Historical results']
     import re
     for row in range(6,41):
         label=s.cell(row,1).value
@@ -97,14 +110,14 @@ def export_xlsx(results,pairs,mechanisms,timing,budgets,time_rows):
             ss=load(ROOT/legacy('quadtree_question',ratio)/'benchmark/summary.json')
             s.cell(row,6,ss['macro'][label]);s.cell(row,7,ss['macro'][label]/ss['macro']['teacher'])
             for col,task in enumerate(TASKS,10):s.cell(row,col,ss['tasks'][task][label])
-    s=wb['T1 主结果']
+    s=wb['T1 Main results']
     for row in range(39,64):
         method=s.cell(row,1).value;ratio=s.cell(row,3).value
         key=(method,ratio,20261105)
         if key not in budgets:continue
         b=budgets[key]
         for col,key in [(4,'images'),(5,'N_mean'),(6,'target_mean'),(7,'retention_mean'),(8,'error_mean'),(9,'abs_error_mean'),(10,'actual_p10'),(11,'actual_p50'),(12,'actual_p90'),(13,'exact_fraction'),(14,'first_mean'),(15,'suffix_mean')]:s.cell(row,col,b[key])
-    s=wb['T3 机制对照']
+    s=wb['T3 Mechanism comparisons']
     for row,method in [(6,'C'),(7,'V'),(8,'T'),(9,'J'),(10,'H'),(11,'A')]:
         r=results.get((method,.25,20261105))
         if not r:continue
@@ -114,14 +127,14 @@ def export_xlsx(results,pairs,mechanisms,timing,budgets,time_rows):
         if (method,.25,20261105) in results:s.cell(row,9,results[('T',.25,20261105)]['macro']-results[(method,.25,20261105)]['macro'])
     for row,name in [(15,'V-C_r0.25'),(16,'T-V_r0.25'),(17,'T-J_r0.25'),(18,'T-H_r0.25'),(19,'T-A_r0.25')]:
         if name in pairs:s.cell(row,3,pairs[name]['difference_points'])
-    s=wb['T4 同页换题']
+    s=wb['T4 Same-page question swap']
     for row,v in [(6,'QQ'),(7,'QW'),(8,'WQ'),(9,'WW')]:
         r=results.get((v,.25,20261105))
         if not r:continue
         for col,val in [(5,r['images']),(6,r['rows']),(7,r['tasks']),(8,r['macro'])]:s.cell(row,col,val)
         for col,t in enumerate(TASKS,10):s.cell(row,col,r['by_task'].get(t,'NA'))
         if v in mechanisms:s.cell(row,18,mechanisms[v]['boundary_change_mean']);s.cell(row,19,mechanisms[v]['weight_l1_mean'])
-    s=wb['T4 同页换题']
+    s=wb['T4 Same-page question swap']
     qq=results.get(('QQ',.25,20261105))
     if qq:
         for col,val in [(5,qq['images']),(6,qq['rows']),(7,qq['tasks']),(8,qq['macro'])]:s.cell(10,col,val)
@@ -133,7 +146,7 @@ def export_xlsx(results,pairs,mechanisms,timing,budgets,time_rows):
     for row,name in [(17,'QQ-WQ'),(18,'QQ-QW'),(19,'QQ-WW'),(20,'QQ-QW-WQ+WW')]:
         if name in pairs:
             r=pairs[name];s.cell(row,3,r['difference_points']);s.cell(row,4,r['image_cluster_95ci_points'][0]);s.cell(row,5,r['image_cluster_95ci_points'][1])
-    s=wb['T5 系统效率']
+    s=wb['T5 System efficiency']
     for row,method in [(6,'REF'),(7,'T'),(8,'C'),(9,'M'),(10,'S'),(12,'G*'),(13,'R')]:
         r=timing.get(('Gstar' if method=='G*' else method)+'_natural_eos')
         if r is None:continue
@@ -149,7 +162,7 @@ def export_xlsx(results,pairs,mechanisms,timing,budgets,time_rows):
     s.cell(21,2,'90 fixed QA by N tercile, 3 repeats; natural EOS and fixed64 separated in machine sheet')
     s.cell(22,2,'10 warmup requests/method; per-request allocated peak includes resident model; only current generator resident')
     s.cell(23,2,'S first block N then K; R actual processor budget logged per image')
-    s=wb['T6 配对与种子']
+    s=wb['T6 Paired comparisons and seeds']
     for row,seed in [(20,20261105),(21,20261106),(22,20261107)]:
         name=f'T-M_seed{seed}'
         if name not in pairs:continue
@@ -169,13 +182,16 @@ def export_xlsx(results,pairs,mechanisms,timing,budgets,time_rows):
             method_a='TP' if name.startswith('TP-') else 'T';method_b=name.split('-')[1].split('_')[0]
             s.cell(row,5,results[(method_a,ratio,20261105)]['macro']);s.cell(row,6,results[(method_b,ratio,20261105)]['macro'])
     # Always include machine-unrounded full exports, including rows not in template.
-    for title in ['机器完整分数','机器配对统计','机器效率']:
+    for legacy in ['\u673a\u5668\u5b8c\u6574\u5206\u6570', '\u673a\u5668\u914d\u5bf9\u7edf\u8ba1', '\u673a\u5668\u6548\u7387']:
+        if legacy in wb:
+            del wb[legacy]
+    for title in ['Full scores','Paired statistics','Efficiency']:
         if title in wb:del wb[title]
-    sh=wb.create_sheet('机器完整分数');sh.append(['method','ratio','seed','macro','QA','images',*TASKS])
+    sh=wb.create_sheet('Full scores');sh.append(['method','ratio','seed','macro','QA','images',*TASKS])
     for (method,ratio,seed),r in sorted(results.items()):sh.append([method,ratio,seed,r['macro'],r['rows'],r['images'],*[r['by_task'].get(t,'NA') for t in TASKS]])
-    sh=wb.create_sheet('机器配对统计');sh.append(['comparison','difference','95CIlo','95CIhi','QA','images','bootstrap'])
+    sh=wb.create_sheet('Paired statistics');sh.append(['comparison','difference','95CIlo','95CIhi','QA','images','bootstrap'])
     for name,r in pairs.items():sh.append([name,r['difference_points'],*r['image_cluster_95ci_points'],r['questions'],r['images'],r['bootstrap_repetitions']])
-    sh=wb.create_sheet('机器效率');sh.append(['method','mode','median_ttft_ms','p95_ttft_ms','median_e2e_ms','p95_e2e_ms','peak_allocated_GiB','median_output_tokens','QA_measurements'])
+    sh=wb.create_sheet('Efficiency');sh.append(['method','mode','median_ttft_ms','p95_ttft_ms','median_e2e_ms','p95_e2e_ms','peak_allocated_GiB','median_output_tokens','QA_measurements'])
     for key,r in timing.items():sh.append([r['method'],r['mode'],r['ttft_p50_ms'],r['ttft_p95_ms'],r['e2e_p50_ms'],r['e2e_p95_ms'],r['peak_allocated_gib'],r['median_output_tokens'],r['measurements']])
     complete=load(BASE/'efficiency/complete.json') and all(('M',.25,seed) in results for seed in [20261105,20261106,20261107]) and len(load(BASE/'merged_results.json').get('results',{}))==16
     wb.save(BASE/('paper_experiment_tables_completed.xlsx' if complete else 'paper_experiment_tables_progress.xlsx'))
@@ -271,19 +287,19 @@ def analyze():
     save(BASE/('final_statistics.json' if all_complete else 'partial_statistics.json'),dict(results=exported,paired=pairs,seed_summary=seed_summary,mechanisms=mechanisms,timing=timing,budgets=[dict(method=m,ratio=r,seed=s,**v) for (m,r,s),v in budgets.items()],analysis_source_sha256=sha(Path(__file__))))
     export_xlsx(results,pairs,mechanisms,timing,budgets,time_rows)
     plot_training(reg)
-    doc=['# 补充实验：完整配对统计与系统效率','', '本页只使用已经通过逐题审计的正式结果。差值为百分点；图像bootstrap与训练seed方差分开。主比较25% T(pre)−M(post)，50%和其他对比为次要/探索性，不以多个未校正CI宣称所有比较均有确认性优势。','', '|方法|预算|seed|宏平均|DocVQA|ChartQA|DeepForm|OCRBench|','|---|---|---:|---:|---:|---:|---:|---:|']
+    doc=['# Supplementary Experiments: Full Paired Statistics and System Efficiency','', 'Use only question-audited formal results. Differences are pp; image bootstrap and training-seed variance are separate. Primary comparison is 25% T(pre)−M(post); 50%/others are secondary/exploratory. Multiple unadjusted CIs do not establish simultaneous confirmatory advantages.','', '|Method|Budget|seed|Macro average|DocVQA|ChartQA|DeepForm|OCRBench|','|---|---|---:|---:|---:|---:|---:|---:|']
     for x in exported:doc.append(f'|{x["method"]}|{x["ratio"]:.0%}|{x["seed"]}|{x["macro"]:.4f}|{x["by_task"].get("DocVQA",float("nan")):.4f}|{x["by_task"].get("ChartQA",float("nan")):.4f}|{x["by_task"].get("DeepForm",float("nan")):.4f}|{x["by_task"].get("OCRBench",float("nan")):.4f}|')
-    doc+=['','## 跨方法及机制配对差','', '|比较|差值|95%图像聚类CI|QA|图像|区间方向|','|---|---:|---|---:|---:|---|']
+    doc+=['','## Paired Differences Across Methods and Mechanisms','', '|Comparison|Difference|95% image-cluster CI|QA|Images|Interval direction|','|---|---:|---|---:|---:|---|']
     for k,r in pairs.items():doc.append(f'|{k}|{r["difference_points"]:.4f}|[{r["image_cluster_95ci_points"][0]:.4f}, {r["image_cluster_95ci_points"][1]:.4f}]|{r["questions"]}|{r["images"]}|{r["interpretation"]}|')
-    doc+=['','## 三个训练种子','',json.dumps(seed_summary,ensure_ascii=False),'','## 系统效率','', '|方法|生成设置|TTFT p50 ms|TTFT p95 ms|E2E p50 ms|E2E p95 ms|峰值allocated GiB|相对REF速度|','|---|---|---:|---:|---:|---:|---:|---:|']
+    doc+=['','## Three Training Seeds','',json.dumps(seed_summary,ensure_ascii=False),'','## System Efficiency','', '|Method|Generation settings|TTFT p50 ms|TTFT p95 ms|E2E p50 ms|E2E p95 ms|Peak allocated (GiB)|Speed relative to REF|','|---|---|---:|---:|---:|---:|---:|---:|']
     for r in timing.values():doc.append(f'|{r["method"]}|{r["mode"]}|{r["ttft_p50_ms"]:.2f}|{r["ttft_p95_ms"]:.2f}|{r["e2e_p50_ms"]:.2f}|{r["e2e_p95_ms"]:.2f}|{r["peak_allocated_gib"]:.3f}|{r["median_e2e_speedup"]:.3f}|')
     primary=pairs.get('T-M_three_seed_per_question_mean')
     if primary:
-        direction={'positive':'在本协议/预算和三个已运行seed条件下支持T宏分更高','negative':'在本协议下T宏分更低，不能声称优于MetaCompress','not_detected':'未检出明确差异；不能声称优越或等效'}[primary['interpretation']]
-        doc+=['','## 实际结果解读','',f'主比较T−M为{primary["difference_points"]:+.4f}百分点，95%图像CI{primary["image_cluster_95ci_points"]}：{direction}。训练seed差的样本标准差另列，不以图像区间替代。','', '问题通路与叶内汇总的解释仅限固定checkpoint的干预；H/A并非从头训练的新方法。次比较区间为探索性，不声明整族方法的同时确认性优势。速度以同设备同请求的自然EOS/固定64两套结果分别判断，若比REF慢则如实记录，不把token压缩率当作加速。']
-    doc+=['','[训练/验证与梯度曲线](../artifacts/compression_supplement_20261111/plots/)。','', '[完整机器统计](../artifacts/compression_supplement_20261111/final_statistics.json) · [Excel回填及完整精度附表](../artifacts/compression_supplement_20261111/paper_experiment_tables_completed.xlsx)。原反馈工作簿未覆盖。']
+        direction={'positive':'Supports higher T macro under this protocol/budget and three evaluated seeds','negative':'Lower T macro under this protocol; superiority to MetaCompress is unsupported','not_detected':'No clear difference detected; superiority and equivalence are unsupported'}[primary['interpretation']]
+        doc+=['','## Interpretation of the Measured Results','',f'Primary T−M difference: {primary["difference_points"]:+.4f} percentage points; 95% image CI {primary["image_cluster_95ci_points"]}: {direction}. Sample SD across training seeds is reported separately, not replaced by image intervals.','', 'Question-path/leaf-aggregation interpretations are fixed-checkpoint interventions; H/A are not freshly trained methods. Secondary intervals are exploratory, not simultaneous confirmation. Judge natural/fixed64 speed separately on matched hardware/requests; record slower-than-REF results, not token compression as speedup.']
+    doc+=['','[Training/validation and gradient curves](../artifacts/compression_supplement_20261111/plots/). ','', '[Complete machine-readable statistics](../artifacts/compression_supplement_20261111/final_statistics.json) · [Completed workbook and full-precision supplementary tables](../artifacts/compression_supplement_20261111/paper_experiment_tables_completed.xlsx). The original feedback workbook is not overwritten.']
     if not all_complete:
-        doc.insert(2,'**阶段性历史记录核对：新增实验尚未完成；本页不代表最终补充结果。**')
+        doc.insert(2,'**Historical interim audit: additional experiments remain incomplete; this is not the final supplementary outcome.**')
         doc=[line.replace('final_statistics.json','partial_statistics.json').replace('paper_experiment_tables_completed.xlsx','paper_experiment_tables_progress.xlsx') for line in doc]
     (ROOT/'docs/COMPRESSION_SUPPLEMENT_STATISTICS.md').write_text('\n'.join(doc)+'\n')
     save(BASE/('analysis_complete.json' if all_complete else 'analysis_progress.json'),dict(paired_comparisons=len(pairs),three_seed_complete=len(seedpairs)==3,timing_complete=bool(timing),xlsx=True,source_sha256=sha(Path(__file__))))

@@ -9,7 +9,7 @@ def main():
     m=a['metrics'];p=json.loads((OUT/'probe_metrics.json').read_text());l=json.loads((OUT/'line_probe_metrics.json').read_text());d=a['full_token_transport_diagnostics'];sp=json.loads((OUT/'subspace_audit.json').read_text())['summary']
     def f(x):return '—' if x is None else f'{x:.4f}'
     def ci(x,percent=False):return '['+', '.join(f'{v*100:.2f}%' if percent else f'{v:.4f}' for v in x)+']'
-    names=[('问题加权 coverage + 位置','coverage_pos_question'),('完整 token Sinkhorn / uniform','sinkhorn_full_uniform'),('完整 token Sinkhorn / 问题增量','sinkhorn_full_question_excess'),('文字＋数值＋粗邻接证据','evidence_combined_question'),('文字＋数值＋OCR 行关系','evidence_combined_line_question'),('问题条件子空间重建','subspace_question')]
+    names=[('Question-weighted coverage + position','coverage_pos_question'),('Full-token Sinkhorn / uniform','sinkhorn_full_uniform'),('Full-token Sinkhorn / question-weighted excess','sinkhorn_full_question_excess'),('Text + numeric + coarse adjacency evidence','evidence_combined_question'),('Text + numeric + OCR-line relations','evidence_combined_line_question'),('Question-conditioned subspace reconstruction','subspace_question')]
     mainrows='\n'.join(f"| {label} | {f(m[n]['pooled_spearman'])} | {f(m[n]['within_question_ratio_family'])} {ci(m[n]['within_question_ratio_family_ci95'])} | {m[n]['paired_seed_ordering']['accuracy']*100:.2f}% {ci(m[n]['paired_seed_ordering']['image_bootstrap_ci95'],True)} |" for label,n in names)
     taskrows=[]
     for t,v in a['per_task'].items():
@@ -26,242 +26,242 @@ def main():
     for name,pairs in counter.items():
         if not pairs:continue
         ex=pairs[0];lo=ex['low_loss'];hi=ex['high_loss']
-        examples.append(f"**`{name}`**：{escape(lo['sample_id'])}，{lo['family']}，保留率 {lo['ratio']}。问题：{escape(lo['question'])}。Gold：{escape(lo['answers'])}；teacher：{escape(lo['teacher_prediction'])}（{lo['teacher_score']:.4f}）。\n\n| 试次 | loss | student 作答（截取至多 180 字符） | student 分数 | 分数下降 |\n|---|---:|---|---:|---:|\n"+'\n'.join(f"| {'低 loss' if r is lo else '高 loss'} / seed {r['replicate']} | {r['loss'][name]:.7g} | {escape(r['student_prediction'])} | {r['student_score']:.4f} | {r['score_drop']:.4f} |" for r in [lo,hi]))
+        examples.append(f"**`{name}`**: {escape(lo['sample_id'])}, {lo['family']}, retention  {lo['ratio']}. Question: {escape(lo['question'])}. Gold: {escape(lo['answers'])}; teacher: {escape(lo['teacher_prediction'])}({lo['teacher_score']:.4f}). \n\n| Trial | loss | Student answer (at most 180 characters) | Student score | Score drop |\n|---|---:|---|---:|---:|\n"+'\n'.join(f"| {'Low loss' if r is lo else 'High loss'} / seed {r['replicate']} | {r['loss'][name]:.7g} | {escape(r['student_prediction'])} | {r['student_score']:.4f} | {r['score_drop']:.4f} |" for r in [lo,hi]))
     ot=m['sinkhorn_full_question_excess'];ln=m['evidence_combined_line_question']
     sensitivity=json.loads((OUT/'statistical_sensitivity.json').read_text())
     sens=sensitivity['both_trial_max_marginal_error_le_1e_6'];sd=sensitivity['all']
-    text=rf'''# 严格 encoder-only 的文档 VQA 压缩 loss 验证
+    text=rf'''# Strict Encoder-Only Loss Validation for Document VQA Compression
 
-**状态：已完成。** 官方 MonkeyOCRv2-B-Und；八任务共 **3,601 张不同图像、3,601 道题、86,424 次随机压缩、7,202 次均值池化对照**。每次压缩的原始作答、gold、teacher/student 分数和所有新 loss 均单独保留。
+**Status: completed.** Official MonkeyOCRv2-B-Und; across eight tasks: **3,601 distinct images, 3,601 questions, 86,424 random compressions, and 7,202 mean-pooling controls**. Original answers, gold references, teacher/student scores, and all new losses are retained separately for every compression.
 
-**主结论：本轮没有验证出能稳定判断“同题、同压缩预算下哪个随机矩阵更好”的新 loss。** 合并不同题目/压缩配置可见正相关，但应同时看条件相关和随机种子配对。完整 token 的问题加权 Sinkhorn 增量：pooled Spearman **{ot['pooled_spearman']:.4f}**，同题同率同族条件相关 **{ot['within_question_ratio_family']:.4f}**，非平局排序正确率 **{ot['paired_seed_ordering']['accuracy']*100:.2f}%**。文字＋数值＋OCR 行关系组合对应为 **{ln['pooled_spearman']:.4f} / {ln['within_question_ratio_family']:.4f} / {ln['paired_seed_ordering']['accuracy']*100:.2f}%**。置信区间见主表；不因某项 pooled 相关稍高而选定新训练目标。
+**Main finding: no new loss reliably identifies the better random matrix for the same question and compression budget.** Pooled correlations across questions/configurations can be positive, but conditional correlations and paired seeds must also be examined. Full-token question-weighted Sinkhorn excess: pooled Spearman **{ot['pooled_spearman']:.4f}**, within-question/retention/family correlation **{ot['within_question_ratio_family']:.4f}**, non-tied ordering accuracy **{ot['paired_seed_ordering']['accuracy']*100:.2f}%**. The text + numeric + OCR-line combination gives **{ln['pooled_spearman']:.4f} / {ln['within_question_ratio_family']:.4f} / {ln['paired_seed_ordering']['accuracy']*100:.2f}%**. CIs appear in the primary table; a slightly higher pooled correlation does not select a new training objective.
 
-**完整问题 OT 有很弱的正向信号，不能说所有新候选都完全随机。** 它的未校正 95% 排序 CI 略高于 50%，但优势仅约 1.63 个百分点，且没有显示优于旧 reconstruction baseline；本轮没有建立强相关或实用的保分保证。所有区间均未作多重比较校正，24 个固定字段也并非相互独立的检验。
+**Full question-weighted OT shows a weak positive signal; the new candidates are not all indistinguishable from random ordering.** Its unadjusted 95% ordering CI is slightly above 50%, but the advantage is only about 1.63 percentage points and does not demonstrate superiority to the previous reconstruction baseline. Strong correlation or a practical guarantee of score preservation has not been established. No intervals are adjusted for multiple comparisons, and the 24 fixed fields are not independent tests.
 
-**明确入口：** [`bash scripts/run_encoder_candidates.sh status`](../scripts/run_encoder_candidates.sh)；[逐试次 CSV](../artifacts/token_proxy/encoder_candidates_v1/trials.csv)、[完整统计 JSON](../artifacts/token_proxy/encoder_candidates_v1/analysis.json)、[反向排序作答实例](../artifacts/token_proxy/encoder_candidates_v1/counterexamples.json)、[原始逐次作答可筛选页面](../artifacts/token_proxy/random_v1_20x/review.html)。
+**Entry point:** [`bash scripts/run_encoder_candidates.sh status`](../scripts/run_encoder_candidates.sh); [Per-trial CSV](../artifacts/token_proxy/encoder_candidates_v1/trials.csv), [Complete statistics JSON](../artifacts/token_proxy/encoder_candidates_v1/analysis.json), [Reverse-ordering answer examples](../artifacts/token_proxy/encoder_candidates_v1/counterexamples.json), [Filterable original per-trial answers](../artifacts/token_proxy/random_v1_20x/review.html).
 
-## 1. 本轮做了什么，哪些方案放弃了
+## 1. Work Performed and Excluded Variants
 
-| 文献建议 | 本轮实际实现 | 对严格约束的处理 |
+| Literature proposal | Implementation evaluated here | Compliance with the strict constraint |
 |---|---|---|
-| 问题证据加权 coverage / Sinkhorn（A / A′） | 独立 OCR 字符/二元组头桥接问题；raw encoder 空间的采样 coverage、完整 token Sinkhorn divergence | 保留 A；放弃官方 projector 空间和 Qwen embedding 的 A′ 变体 |
-| 非生成式文字/数值/关系证据保留（A） | 字符存在、hashed bigram、数字/格式类型分布 JS；粗文字–数字邻接；补充训练 same-OCR-line probe | 全部读取 raw X 或 PX；没有精确字符串、算术或表头–数值语义关系识别器 |
-| 问题条件子空间重建（A′ baseline） | 改成 raw encoder 全部 768 维的 ridge 子空间重建；用独立词法桥给 teacher token 加权 | 修改后不使用 projector 或 Qwen embedding，正常验证；不是原接口空间版本的逐式复现 |
+| Question-evidence-weighted coverage / Sinkhorn (A / A′) | Independent OCR character/bigram head bridges questions; sampled raw-encoder coverage and full-token Sinkhorn divergence | Retain A; exclude A′ variants in official projector/Qwen embedding space |
+| Non-generative text/numeric/relation evidence preservation (A) | JS on character presence, hashed bigrams, and numeric/format types; coarse text–number adjacency; an additional same-OCR-line probe | Read raw X or PX only; no exact-string, arithmetic, or header–value semantic recognizer |
+| Question-conditioned subspace reconstruction (A′ baseline) | Use ridge subspace reconstruction on all 768 raw-encoder dimensions, weighting teacher tokens with an independent lexical bridge | Modified to avoid projector/Qwen embeddings; evaluated normally, but not a formula-by-formula reproduction in the original interface space |
 
-明确放弃：① 使用官方 merger / alignment MLP 输出定义距离；② 使用 Qwen token embedding 构造问题 query；③ 用 LLM attention、logits、NLL 或 VQA 作答分数训练 evidence head。它们依赖用户明确排除的 decoder/interface，不符合本轮要求。**没有因为候选在论文中被称为 training-free，就把它当作 decoder-agnostic。**
+Explicitly excluded: (1) distances on official merger/alignment-MLP outputs; (2) question queries built from Qwen token embeddings; (3) evidence heads supervised by LLM attention, logits, NLL, or VQA answer scores. These depend on the excluded decoder/interface and violate this experiment's constraints. **A method being described as training-free does not make it decoder-agnostic.**
 
-本轮计算图：
+Computational graph:
 
 ```text
-官方冻结 Und encoder → X[N,768] ──────→ 官方 merger/LLM → teacher 作答（已有缓存）
-                         ├─ P → C[M,768] → 官方 merger/LLM → student 作答（已有缓存）
-                         └─ X、C、U、PU、问题 → 独立 OCR/行探针 + encoder-only 数学距离 → loss
+frozen official Und encoder → X[N,768] ──────→ official merger/LLM → teacher answer (cached)
+                         ├─ P → C[M,768] → official merger/LLM → student answer (cached)
+                         └─ X, C, U, PU, question → independent OCR/line probe + encoder-only mathematical distances → loss
 ```
 
-loss 分支没有读取右侧的官方 merger/LLM 张量。为辅助探针提取训练特征时，加载前将官方 `vision_tower.merger` 替换为 Identity，只加载其余 vision weights；未加载 Qwen 权重。[实现](../scripts/cache_encoder_probe.py)。独立的 768→192→120 evidence MLP 和 578→64→1 行关系 MLP **是用 OCR 标注训练的小型探针，不是官方 encoder–LLM 对齐层**；其参数及输出没有进入下游 LLM。
+The loss branch does not read official merger/LLM tensors on the right. Before extracting auxiliary-probe features, replace the official  `vision_tower.merger` with Identity before loading remaining vision weights, without loading Qwen. [Implementation](../scripts/cache_encoder_probe.py). The separate 768→192→120 evidence MLP and 578→64→1 line MLP **are small OCR-supervised probes, not the official encoder–LLM alignment layer**. Their parameters/outputs never enter the downstream LLM.
 
-计算上满足 decoder-free、接口权重独立的要求；但只在一个 Und decoder 上验证，**尚不能宣称已证明跨 decoder 的统计预测能力**。训练一个真正能提升 VQA 的 compressor 也不在本轮范围内。
+Computationally decoder-free and independent of interface weights, but validated on one UND decoder only; **cross-decoder statistical predictive ability is not established**. Training a VQA-improving compressor is outside this study.
 
-## 2. 数据、随机矩阵与逐次结果的对应
+## 2. Matching Data, Random Matrices, and Per-Trial Outcomes
 
-沿用 [20 倍规模实验](TOKEN_PROXY_20X_RESULTS.md) 的相同图像、问题、预处理、encoder 特征及矩阵文件。**下游 teacher/student 答案及分数来自旧实验缓存；本轮重新计算候选 loss，没有重新运行 93,626 次 LLM 生成。** 这是同一压缩干预的配对重评，避免生成差异混入比较。
+Following the [20×-scale experiment](TOKEN_PROXY_20X_RESULTS.md) uses identical images, questions, preprocessing, features, and matrices. **Teacher/student answers/scores reuse prior caches; only candidate losses are recomputed, not 93,626 generations.** Matched intervention replay avoids generation noise.
 
-- 模型：`models/MonkeyOCRv2-B-Und`，官方成品权重，未挂 LoRA。原始 encoder 输出 BF16、768 维，max_pixels=1,003,520。
-- 每图一题；保留率 $r=M/N\in\{{0.125,0.25,0.375,0.5,0.625,0.875\}}$。local/global 两族，各两个 seed：每图 24 个随机试次。另有每图 0.25/0.5 两个 mean-pooling controls，不混入主相关性。
-- 未改动 [`vqa/token_proxy.py`](../vqa/token_proxy.py)。每个 token 只属于一个平衡 support，support 大小差至多 1；行内 uniform[-2,2] logits 做 softmax，再混合 30% 均匀权重；加入 $10^{{-6}}$ 全局 floor。所有元素严格正、逐行和为 1，$C=PX$ 是凸组合；等价地 $P=\operatorname{{softmax}}(\log P)$。不是完全无约束的高斯稠密随机矩阵。
-- 每个 trial 独立保留 `matrix_seed / matrix_file / teacher_prediction / student_prediction / answers / teacher_score / student_score / score_drop`。**没有先平均 seed 的 ANLS 等分数再算相关性。**
-- 新 worker 验证全部矩阵 SHA256、全部 raw X SHA256，以及每次 $PX$ 转为 BF16 后的 SHA256；与原来真正进入下游的压缩张量一致。每图还独立重生成首个随机 P，验证 group/weight 完全一致。loss 使用 float32 $PX$；下游使用其 BF16 版本。
-- 原接口审计中 native/cached/identity 的 logits 和生成一致、teacher 与既有官方 baseline 3,601/3,601 一致。[既有审计](../artifacts/token_proxy/random_v1_20x/audit.json)。原有评分器不变：DeepForm/KLC 用逐题 normalized exact match，不能当作文档集合 F1；各任务的 score 都在 [0,1]，跨任务 pooled 结果仅为诊断。
+- Model: `models/MonkeyOCRv2-B-Und`, official complete weights without LoRA. Raw encoder outputs are BF16, 768-dimensional, max_pixels=1,003,520.
+- One question/image; retention $r=M/N\in\{{0.125,0.25,0.375,0.5,0.625,0.875\}}$. Two families, local/global, with two seeds each give 24 random trials/image. Two mean-pooling controls/image at 0.25/0.5 are excluded from primary correlation statistics.
+- Unmodified [`vqa/token_proxy.py`](../vqa/token_proxy.py). Each token belongs to one balanced support; support sizes differ by at most 1. Apply row softmax to uniform[-2,2] logits, mix with 30% uniform weights, and add a $10^{{-6}}$  global  floor. All entries are strictly positive with row sums  1, $C=PX$ is convex aggregation; equivalently $P=\operatorname{{softmax}}(\log P)$. This is not unconstrained dense Gaussian mixing.
+- Each trial independently retains  `matrix_seed / matrix_file / teacher_prediction / student_prediction / answers / teacher_score / student_score / score_drop`. **Seed-level ANLS or other downstream scores are not averaged before correlation.**
+- New workers verify all matrix and raw-X SHA-256 values, and every  $PX$ after BF16 conversion matches the actual downstream compressed tensor. Regenerate each image’s first random P independently and verify identical groups/weights. Loss uses FP32  $PX$; downstream uses its BF16 version.
+- Existing interface audits show equal native/cached/identity logits and generation, and teacher agreement with official baseline on all 3,601/3,601 questions. [Existing audit](../artifacts/token_proxy/random_v1_20x/audit.json). Original scorers remain: DeepForm/KLC normalized per-question exact match, not corpus F1. All scores lie in [0,1]; pooled cross-task correlation is diagnostic only.
 
-| 任务 | 不同图像/题目 | 随机试次 | 本子集 teacher 分数×100 | coverage ρ | 完整 OT 增量 ρ | evidence＋行 ρ | subspace ρ |
+| Task | Distinct images / questions | Random trials | Subset teacher score ×100 | coverage ρ | Full OT excess ρ | Evidence + line relations ρ | subspace ρ |
 |---|---:|---:|---:|---:|---:|---:|---:|
 {chr(10).join(taskrows)}
 
-这里的 teacher 数值仅说明所用子集基线，不是论文完整 benchmark 的重新评测。
+Teacher values describe this subset, not reevaluation of the paper’s full benchmark.
 
-## 3. 实际 loss 结构
+## 3. Implemented Loss Definitions
 
-### 3.1 不依赖 decoder 的问题桥与 feature 坐标
+### 3.1 Decoder-Independent Question Bridge and Feature Coordinates
 
-以 InfoVQA **训练集** OCR WORD 框和文字（confidence≥70）训练独立非自回归探针：720 图训练、240 图按图像隔离验证；与本项目 VQA val/test 的图像 hash 交集为 0。没有用 VQA gold、作答分数或官方 LLM 表征训练。训练固定 20 epochs、采用最后 epoch，不按下游相关性挑 checkpoint。
+Train independent non-autoregressive probes using InfoVQA **training-set** OCR WORD boxes/text (confidence≥70): 720 training images and 240 image-disjoint validation images, with zero image-hash overlap with project VQA val/test. No VQA gold, answer scores, or official LLM representations supervise the probes. Train for 20 fixed epochs and use the last one, without checkpoint selection by downstream correlation.
 
-$H(X)$ 输出多标签概率：小写字符存在、64 个 hashed bigrams、8 个类型（text/digit/decimal/percent/currency/negative/date/alphabet）。问题去停用词后，映射为同一显式字符/bigram 坐标；与 $H(X_i)$ 的 cosine maxsim 得 $s_i(q)$，固定温度 0.1：
+$H(X)$ outputs multilabel probabilities for lowercase character presence, 64 hashed bigrams, and 8 types (text/digit/decimal/percent/currency/negative/date/alphabet). Remove question stopwords and map into the same explicit character/bigram coordinates, cosine max-similarity to $H(X_i)$ gives $s_i(q)$, with fixed temperature 0.1:
 
 $$a_i(q)=0.3/N+0.7\operatorname{{softmax}}_i(s_i(q)/0.1).$$
 
-这是**词法桥**，没有完整的语义问题理解；VQA 的真正答案证据可能不与问题共享文字。240 图 OCR 验证只能检验基础探针，不证明 VQA evidence grounding 正确。
+This is a **lexical bridge**, not complete semantic question understanding; answer evidence may share no question text. OCR validation on 240 images checks probes, not VQA evidence grounding.
 
-距离中使用同一个固定随机正交投影 $R\in\mathbb{{R}}^{{768\times64}}$（seed=20261022），$h(x)=xR/(s\sqrt{{64}})$，$s={p['rms']:.6f}$ 是训练集 scalar RMS。teacher/student 使用同一尺度，**没有对 student 独立归一化**。该投影与官方对齐层完全无关。坐标 $U$ 为原 patch 的归一化二维位置，student 坐标取 $PU$。
+Distances use a fixed random orthogonal projection $R\in\mathbb{{R}}^{{768\times64}}$ (seed=20261022), $h(x)=xR/(s\sqrt{{64}})$, $s={p['rms']:.6f}$ is the training-set scalar RMS. Teacher and student use the same scale; **the student is not normalized independently**. The projection is independent of official alignment weights. $U$ contains normalized 2D patch coordinates; compressed coordinates are $PU$.
 
-### 3.2 问题加权 coverage
+### 3.2 Question-Weighted Coverage
 
-每图固定均匀抽至多 256 个 teacher anchors；对全部 student token 做 nearest-neighbor：
+Uniformly sample at most 256 fixed teacher anchors/image; find nearest neighbors among all student tokens:
 
 $$L_{{cov}}=\sum_{{i\in A}}\tilde a_i\min_j\big[\|h(X_i)-h(C_j)\|^2+0.25\|U_i-(PU)_j\|^2\big].$$
 
-保留 uniform / question、是否加位置四种固定变体。$\tilde a$ 在所抽 anchors 内重新归一化。**这是采样 coverage，不是全 teacher 精确 coverage**；问题权重很集中时会有漏采证据的局限，不能把它当作原建议的无限精度实现。
+Retain four fixed uniform/question variants with/without positions. $\tilde a$ is renormalized within sampled anchors. **This is sampled, not exact full-teacher coverage**. Concentrated question weights can miss evidence, so it is not an unlimited-precision version of the proposal.
 
-### 3.3 完整 token Sinkhorn
+### 3.3 Full-Token Sinkhorn
 
-完整 $N\times M$ token 间的 cost 与上式相同，target mass 固定 $b_j=1/M$。熵正则 $\epsilon=0.05$，目标为 $\langle\pi,D\rangle+\epsilon\mathrm{{KL}}(\pi\|ab^T)$；用 debiased Sinkhorn divergence：
+Full $N\times M$ token costs follow the same formula; target mass is fixed  $b_j=1/M$. Entropy regularizer  $\epsilon=0.05$, objective $\langle\pi,D\rangle+\epsilon\mathrm{{KL}}(\pi\|ab^T)$; use debiased Sinkhorn divergence:
 
 $$S_\epsilon(\mu,\nu)=OT_\epsilon(\mu,\nu)-\tfrac12 OT_\epsilon(\mu,\mu)-\tfrac12 OT_\epsilon(\nu,\nu).$$
 
-两种 source mass：uniform 或 $a(q)$。**问题加权 source 与均匀 target 的边际不同，即使 $P=I$，raw divergence 也可能非零。** 因而完整保留 raw 值，并单独报告：
+Two source masses: uniform or  $a(q)$. **Question-weighted source and uniform target marginals differ, even if  $P=I$, raw divergence may also be nonzero.** Retain raw values and report separately:
 
 $$L_{{OT,q,excess}}=S_\epsilon((X,a(q)),(C,\mathrm{{unif}}))-S_\epsilon((X,a(q)),(X,\mathrm{{unif}})).$$
 
-这是相对未压缩参考的增量，可为负，**不是保证非负的严格距离**。同题内部，减去常量不会改变随机矩阵排序；跨题 pooled 可能改变。
+Excess over the uncompressed reference can be negative, **not a guaranteed nonnegative distance**. Subtracting a questionwise constant preserves within-question matrix ordering but can change pooled correlation.
 
-最终主结果采用**全 token**传输，不合并空间质心；64 维 feature 投影仍保留。512 空间质心近似另外保留作计算消融，不能替代最终 OT 结论。NPU float32 使用稳定 scaling，必要时 fallback log-domain；最少 150、最多 1,500 次迭代，目标 marginal tolerance $10^{{-6}}$，实际误差见第 6 节。
+Final primary results use **full-token** transport without spatial-centroid merging; the 64-dimensional feature projection remains. The 512-centroid approximation is retained only as a computational ablation, not a substitute for final OT conclusions. NPU FP32 uses stable scaling with log-domain fallback, 150–1,500 iterations, and target marginal tolerance $10^{{-6}}$; actual errors are reported in Section 6.
 
-### 3.4 非生成式文字、数值与关系证据保留
+### 3.4 Non-Generative Text, Numeric, and Relational Evidence Preservation
 
-在固定 16×8 空间查询点，各从 X/U 和 C/PU 独立读取最近 8 个 token，Gaussian bandwidth=0.04 加权；距最近 token 很远时回退 toward $H(0)$。比较两侧探针输出的 Bernoulli JS divergence：
+At a fixed 16×8 spatial query grid, independently read the nearest 8 tokens from X/U and C/PU with Gaussian bandwidth=.04. Far-from-token queries fall back toward  $H(0)$. Compare the two probe outputs using Bernoulli JS divergence:
 
-- `evidence_text_*`：字符＋bigram 概率差异。
-- `evidence_number_*`：digit、decimal、percent、currency、negative、date 六类概率差异。
-- `evidence_relation_question`：相邻查询区域的文字/数字四种绑定状态差异；这是**粗邻接**，没有训练表格语义关系。
-- `evidence_combined_question`：上述三项固定等权求和。
+- `evidence_text_*`: character+bigram probability differences.
+- `evidence_number_*`: probability differences for digit, decimal, percent, currency, negative, and date.
+- `evidence_relation_question`: four text/number binding-state differences in neighboring query regions; **coarse adjacency**, not learned table semantics.
+- `evidence_combined_question`: fixed equal-weight sum of the three terms.
 
-补充结构诊断：在同一 720/240 图划分上，用 WORD→LINE 标注训练 37,121 参数的 same-line head。训练输入是两个 OCR word ROI 的 raw X 经冻结 evidence head 第一层所得 192 维特征，加绝对差和二维位置差。验证时，对同一固定空间网格预测相邻区域的 same-line 概率，比较 teacher/student 的 JS；得到 `evidence_line_uniform/question`。`evidence_combined_line_question` 为 text＋number＋line 三项等权和。**这是补充实验，不伪装为最初所有设计均已预注册；也没有按 VQA 分数挑权重或最终候选。**
+Additional structural probe: on the same 720/240-image split, train a 37,121-parameter same-line head using WORD→LINE annotations. Inputs are two OCR-word ROIs' 192-dimensional raw-X features from the frozen evidence head's first layer, plus absolute feature and 2D position differences. At validation, predict same-line probabilities for neighboring regions of one fixed spatial grid and compare teacher/student JS, obtaining  `evidence_line_uniform/question`. `evidence_combined_line_question` is the equal-weight text+number+line sum. **This is an added experiment, not claimed fully preregistered. VQA scores select neither weights nor final candidates.**
 
-限制：字符存在/bigram hashing **不能恢复字符顺序和精确数值字符串**；本轮未实现表头–值语义关系、算术关系或非自回归精确 OCR head。对这一组 loss 的负结果，只能否定**上述实际探针实例**在当前分布上的预测能力，不能说所有“精确文字/数值/关系保留”方案已被验证无效。探针以 OCR word/token 标签训练，压缩混合 token 与固定网格读取还存在分布变化。
+Limitations: character-presence/bigram hashing **cannot reconstruct character order or exact numerical strings**. No header–value semantic relations, arithmetic relations, or non-autoregressive exact OCR head are implemented. Negative results apply only to **these specific probes** on this distribution; they do not invalidate every exact-text/numeric/relation-preservation method. OCR word/token supervision also differs from compressed mixed tokens and fixed-grid readout at evaluation.
 
-### 3.5 问题条件子空间重建
+### 3.5 Question-Conditioned Subspace Reconstruction
 
-改成 encoder 原生 **768 维**空间；不把 feature 降到 64 维后做 subspace。令 $\lambda=0.001s^2$，用 Cholesky 解 ridge 投影残差：
+Use the raw encoder’s full **768-dimensional** space, without 64-dimensional feature reduction for subspace reconstruction. Let  $\lambda=0.001s^2$, use Cholesky for the ridge-projection residual:
 
 $$E_i=\lambda X_i(C^TC/M+\lambda I)^{{-1}},\qquad L_{{sub,q}}=\frac{{\sum_{{i\in A}}\tilde a_i\|E_i\|^2}}{{\sum_{{i\in A}}\tilde a_i\|X_i\|^2}}.$$
 
-风险评估仍使用同一至多 256 个 teacher anchors；协方差使用全部 C。保留 uniform、question 和减去未压缩 ridge reference 的 excess 三项。该 baseline 可不运行 LLM，但计算 768×768 Cholesky 仍有成本，不是零成本。
+Risk evaluation retains the same at most 256 teacher anchors; covariance uses all C. Retain uniform, question-weighted, and excess terms subtracting the uncompressed ridge reference. This baseline needs no LLM forward, but 768×768 Cholesky still has a computational cost.
 
-它衡量“student span 能否重建 teacher”，并不要求恢复系数等于 P，也不限制为凸重建。混合 C 可能覆盖 feature span、但破坏局部阅读和 decoder 可用性；因此不能将低 residual 直接解释为 VQA 信息充足。
+It asks whether student span can reconstruct teacher, with coefficients neither required to equal P nor constrained to be convex. Mixed C can preserve span while breaking local reading/decoder usability. Low residual therefore does not establish sufficient VQA information.
 
-对 hash 选取的八任务各 1 图、64 次压缩另做 [float64 谱/系数审计](../artifacts/token_proxy/encoder_candidates_v1/subspace_audit.json)：相对 1e-4 阈值的秩范围 {sp['rank_at_relative_1e_4']['min']:.0f}–{sp['rank_at_relative_1e_4']['max']:.0f}；ridge covariance 条件数范围 {sp['ridge_cov_condition']['min']:.3g}–{sp['ridge_cov_condition']['max']:.3g}。重建系数中负值占比 median={sp['coefficient_negative_fraction']['median']*100:.2f}%；逐 trial 的系数绝对值行和第 95 分位数 median={sp['coefficient_abs_row_sum_p95']['median']:.2f}、max={sp['coefficient_abs_row_sum_p95']['max']:.2f}。这与压缩 P 本身的非负凸组合约束是两回事。float32 主 loss 对比 float64 参考的 uniform residual 最大相对误差为 {sp['float32_uniform_relative_error']['max']*100:.4f}%，在这 64 个审计点上未显示明显数值失真；不能将此抽查当作全部 93,626 次的精度证明。
+Additional [FP64 spectral/coefficient audit on 64 compressions of one hash-selected image per task](../artifacts/token_proxy/encoder_candidates_v1/subspace_audit.json): rank range at relative threshold 1e-4  {sp['rank_at_relative_1e_4']['min']:.0f}–{sp['rank_at_relative_1e_4']['max']:.0f}; ridge-covariance condition-number range  {sp['ridge_cov_condition']['min']:.3g}–{sp['ridge_cov_condition']['max']:.3g}. Median fraction of negative reconstruction coefficients={sp['coefficient_negative_fraction']['median']*100:.2f}%; median across trials of the coefficient absolute-row-sum 95th percentile = {sp['coefficient_abs_row_sum_p95']['median']:.2f}, max={sp['coefficient_abs_row_sum_p95']['max']:.2f}. This differs from P’s nonnegative convexity constraint. Maximum FP32-versus-FP64 relative error for the uniform residual is  {sp['float32_uniform_relative_error']['max']*100:.4f}%, with no clear numerical distortion at these 64 audited points. This spot check does not establish precision for all 93,626 solves.
 
-## 4. 独立辅助头是否真的学到了东西
+## 4. Do Independent Auxiliary Heads Learn Useful Signals?
 
-| 独立验证指标 | 数值 |
+| Independent validation metric | Numerical value |
 |---|---:|
 | text AP | {p['text_AP']:.4f} |
 | digit AP | {p['digit_AP']:.4f} |
-| 字符 macro AP（text token） | {p['character_macro_AP_text_tokens']:.4f} |
-| bigram macro AP（text token） | {p['bigram_macro_AP_text_tokens']:.4f} |
-| OCR 词 query Top-10 命中 | {p['OCR_word_query_localization']['top10_hit_rate']*100:.2f}% |
-| 同查询 uniform 近似 Top-10 命中 | {p['OCR_word_query_localization']['uniform_approx_top10_hit_rate']*100:.2f}% |
+| Character macro AP (text tokens) | {p['character_macro_AP_text_tokens']:.4f} |
+| bigram macro AP(text token) | {p['bigram_macro_AP_text_tokens']:.4f} |
+| OCR word-query Top-10 hit rate | {p['OCR_word_query_localization']['top10_hit_rate']*100:.2f}% |
+| Same-query uniform-approximation Top-10 hit rate | {p['OCR_word_query_localization']['uniform_approx_top10_hit_rate']*100:.2f}% |
 | same-line AP / accuracy | {l['same_line_AP']:.4f} / {l['same_line_accuracy']:.4f} |
 | **geometry-only same-line AP** | **{l['geometry_only_AP']:.4f}** |
 
-OCR head：170,808 参数、540,622 train tokens / 181,207 holdout tokens；正负 token 有抽样，AP 对应该抽样分布，不代表全图自然频率。OCR query 检查为 80 张 heldout 图中的 950 个词查询，不是 VQA query 的证据定位准确率。行 head：167,820 train pairs / 56,620 holdout pairs。几何规则的行关系 AP **优于**所训练 head，不应声称 head 学会了强语义关系。
+OCR head: 170,808 parameters, 540,622 training tokens / 181,207 held-out tokens. Positive and negative tokens are sampled, so AP describes that sampling distribution, not natural full-image frequencies. OCR-query checks use 950 word queries on 80 held-out images, not VQA evidence-localization accuracy. The line head uses 167,820 training pairs / 56,620 held-out pairs. Geometric line rules have **higher** AP than the trained head; strong learned semantic relations have not been demonstrated.
 
-| OCR 类型 | AP |
+| OCR type | AP |
 |---|---:|
 {apr}
 
-[OCR 逐 epoch 训练/验证指标](../artifacts/token_proxy/encoder_candidates_v1/probe_metrics.json)、[训练曲线 PDF](../artifacts/token_proxy/encoder_candidates_v1/probe_training_loss.pdf)、[行 head 逐 epoch 指标](../artifacts/token_proxy/encoder_candidates_v1/line_probe_metrics.json)、[OCR 权重](../artifacts/token_proxy/encoder_candidates_v1/evidence_head.pt)、[行权重](../artifacts/token_proxy/encoder_candidates_v1/line_head.pt)。所有辅助训练仅为了构造 loss；没有训练 compressor、官方 projector 或 LLM。
+[Per-epoch OCR training/validation metrics](../artifacts/token_proxy/encoder_candidates_v1/probe_metrics.json), [Training-curve PDF](../artifacts/token_proxy/encoder_candidates_v1/probe_training_loss.pdf), [Per-epoch line-head metrics](../artifacts/token_proxy/encoder_candidates_v1/line_probe_metrics.json), [OCR weights](../artifacts/token_proxy/encoder_candidates_v1/evidence_head.pt), [Line-head weights](../artifacts/token_proxy/encoder_candidates_v1/line_head.pt). Auxiliary training constructs the loss only; compressor, official projector, and LLM are not trained.
 
-## 5. 相关性验证结果
+## 5. Correlation-Validation Results
 
-定义 $\Delta=score_{{teacher}}-score_{{student}}$，不截断负值。期望 loss 越大、$\Delta$ 越大。pooled Spearman 使用 **86,424 个独立保留的 trial**；同题同率同族指标在每个双 seed 组内取 rank、中心化后汇总相关。后者衡量同一压缩预算下的排序能力，不能与跨所有配置 pooled 数值混为一谈。
+Define $\Delta=score_{{teacher}}-score_{{student}}$, ; retain negative values. Higher loss should correspond to larger  loss increases, $\Delta$ increases. Pooled Spearman uses **86,424 individually retained trials**. Within-question/retention/family metrics rank and center each two-seed group before aggregation. They measure ordering at a fixed compression budget and must not be conflated with pooled correlation across configurations.
 
-所有置信区间用 **1,000 次 image-cluster bootstrap**，将一张图的所有 trial 一起重采样；pooled Spearman 每次重新排名。同 seed 配对从不把两个下游分数取平均，只比较高/低 loss 与高/低下降是否同向。条件相关基于组内秩，仅两个 seed 时重在检查方向；不是精细的条件函数估计。
+All confidence intervals use **1,000 image-cluster bootstrap resamples**, retaining each image's trials together and reranking pooled Spearman each time. Paired seeds are never averaged: only agreement between high/low loss and high/low score drop is checked. Conditional correlation uses within-group ranks; two seeds mainly test direction, not a finely estimated conditional relationship.
 
-| 实际方案 | pooled Spearman | 同题＋同率＋同族相关 [95% CI] | 非平局 seed 排序正确率 [95% CI] |
+| Evaluated method | pooled Spearman | Within-question/retention/family correlation [95% CI] | Non-tied seed-ordering accuracy [95% CI] |
 |---|---:|---|---|
 {mainrows}
 
-总共 **{pair['pairs']:,}** 个双 seed 配对组，其中 **{pair['outcome_ties']:,}** 组下游分数相同、仅 **{pair['pairs']-pair['outcome_ties']:,}** 组非平局。随机 trial 中 student 得 0 分为 **{zero:,}/{a['random_trials']:,}（{zero/a['random_trials']*100:.2f}%）**。因此当前随机族存在严重地板效应；大量试次无法用作答分数辨别强弱。CI 含 50% 时，不能认定排序优于随机。
+Total **{pair['pairs']:,}** paired two-seed groups, of which **{pair['outcome_ties']:,}** groups tie on downstream score; only **{pair['pairs']-pair['outcome_ties']:,}** groups are non-tied. Student zero-score rate among random trials: **{zero:,}/{a['random_trials']:,}({zero/a['random_trials']*100:.2f}%)**. This random family therefore has a severe floor effect: many trials cannot be ranked by answer score. A CI including 50% does not establish better-than-random ordering.
 
-**弱信号与数值误差敏感性：**只保留两个 trial 的最大 OT 边际误差均≤1e-6 的配对后，剩余 {sens['nontie_pairs']:,} 个非平局对，问题 OT 排序正确率为 {sens['OT_order_accuracy']*100:.2f}%、95% CI {ci(sens['OT_accuracy_image_bootstrap_ci95'],True)}。全量同一批配对中，OT 相对旧 `V1_rec` 的正确率差为 {sd['OT_minus_old_rec_accuracy']*100:.3f} 个百分点，配对 image-bootstrap 95% CI 为 [{sd['paired_image_bootstrap_difference_ci95'][0]*100:.3f}, {sd['paired_image_bootstrap_difference_ci95'][1]*100:.3f}] 个百分点。因此没有验证出相对旧重建项的改善。[完整补充统计](../artifacts/token_proxy/encoder_candidates_v1/statistical_sensitivity.json)。这是敏感性检查，不替换全量主结果，也不用于选择候选。
+**Weak signals and numerical-error sensitivity:** retaining pairs for which both trials have maximum OT marginal error ≤1e-6 leaves  {sens['nontie_pairs']:,}  non-tied pairs; question-weighted OT ordering accuracy is  {sens['OT_order_accuracy']*100:.2f}%, 95% CI {ci(sens['OT_accuracy_image_bootstrap_ci95'],True)}. In all matched pairs, OT relative to the earlier  `V1_rec` accuracy difference is  {sd['OT_minus_old_rec_accuracy']*100:.3f}  percentage points; paired image-bootstrap 95% CI [{sd['paired_image_bootstrap_difference_ci95'][0]*100:.3f}, {sd['paired_image_bootstrap_difference_ci95'][1]*100:.3f}] percentage points. Improvement over the old reconstruction term is not established. [Complete supplementary statistics](../artifacts/token_proxy/encoder_candidates_v1/statistical_sensitivity.json). This sensitivity analysis neither replaces primary results nor selects candidates.
 
-### 各任务的同题同率同族相关
+### Within-Question, Retention, and Family Correlations by Task
 
-| 任务 | coverage | 完整 OT 增量 | evidence＋行 | subspace |
+| Task | coverage | Full OT excess | Evidence + line relations | subspace |
 |---|---:|---:|---:|---:|
 {conditionrows}
 
-### 排除 teacher 本来不会作答，以及较高保留率
+### Teacher-Solvable Subsets and Higher Retention Fractions
 
-| 方案 | teacher>0 pooled ρ | teacher=1 pooled ρ | r≥0.625 pooled ρ | r≥0.625 条件相关 |
+| Method | teacher>0 pooled ρ | teacher=1 pooled ρ | r≥0.625 pooled ρ | Conditional correlation at r≥0.625 |
 |---|---:|---:|---:|---:|
 {subsetrows}
 
-teacher>0 共 **{a['teacher_positive_images']:,}** 张图。过滤可以减少“teacher 已经错了导致下降无法体现”的干扰，但不能自动解决同题同预算的随机矩阵排序问题。
+Teacher>0 includes **{a['teacher_positive_images']:,}** images. Filtering reduces the confound of an already incorrect teacher leaving no visible score drop, but does not solve same-question/same-budget random-matrix ordering.
 
-### 直接作答反例
+### Counterexamples from Actual Answers
 
-以下按反向下降幅度挑出示例，仅用于说明失败机制，**不是这些事件的无偏频率估计**。每一对的图像、问题、保留率和矩阵族都相同；完整答案、矩阵 seed 和其余示例见 counterexamples.json。
+Examples are selected by reverse-order score drop to illustrate failure mechanisms, **not estimate their unbiased frequency**. Each pair shares image, question, retention, and matrix family; complete answers/seeds and more examples are in counterexamples.json.
 
 {chr(10).join(chr(10)+ex+chr(10) for ex in examples)}
 
-### 固定保留率和矩阵类型后的 pooled Spearman
+### Pooled Spearman at Fixed Retention and Matrix Family
 
-这里仍混合不同问题，不能代替主表的同题条件检验。
+Questions are still pooled here; this does not replace same-question conditional tests.
 
-| r / family | coverage | 完整 OT 增量 | evidence＋行 | subspace |
+| r / family | coverage | Full OT excess | Evidence + line relations | subspace |
 |---|---:|---:|---:|---:|
 {configrows}
 
-### 全部固定变体与旧基线
+### All Fixed Variants and Historical Baselines
 
-| loss 字段 | pooled ρ | 同题跨全部配置相关 | 同题同率同族相关 | seed 非平局排序 |
+| Loss field | pooled ρ | Within-question correlation across configurations | Within-question, retention, and family correlation | Non-tied seed ordering |
 |---|---:|---:|---:|---:|
 {allrows}
 
-`V1`、`V1_rec` 是此前实际 loss 的同批对照；旧 reconstruction 项可能有弱正排序信号，不能把“新候选未证实有效”说成“所有基线精确随机”。`sinkhorn_*` 无 `full` 前缀是 512 空间质心近似，仅作消融。所有 mean-pooling control 的相关性、双向 rank 残差、每任务 seed 排序数及每项 loss 的分位数见 [analysis.json](../artifacts/token_proxy/encoder_candidates_v1/analysis.json)；没有用对照挑选新组合。
+`V1`, `V1_rec` is a same-trial comparison with the earlier loss. Reconstruction may show weak positive ordering; failure to validate new candidates does not make every baseline exactly random.`sinkhorn_*` None `full` prefixed variants use 512 spatial centroids as an ablation only. Mean-pooling correlations, two-factor rank residuals, per-task seed-ordering counts, and loss quantiles are in [analysis.json](../artifacts/token_proxy/encoder_candidates_v1/analysis.json); controls do not select new combinations.
 
-![逐试次 loss 与作答下降散点](../artifacts/token_proxy/encoder_candidates_v1/correlation_scatter.png)
+![Per-trial loss versus answer-score drop](../artifacts/token_proxy/encoder_candidates_v1/correlation_scatter.png)
 
-[散点 PDF](../artifacts/token_proxy/encoder_candidates_v1/correlation_scatter.pdf)。图中为固定随机抽取的至多 16,000 个 trial，仅用于可视化；所有统计使用全量随机 trial。横轴范围不同，不可通过斜率大小比较 loss 好坏。
+[Scatter PDF](../artifacts/token_proxy/encoder_candidates_v1/correlation_scatter.pdf). Scatter plots use a fixed random sample of at most 16,000 trials for visualization only; statistics use all random trials. Different x-axis scales prevent comparing losses by visual slope.
 
-## 6. 数值、接口与精度审计
+## 6. Numerical, Interface, and Precision Audits
 
-- [数学检查](../artifacts/token_proxy/encoder_candidates_v1/math_checks.json)：tiny entropic OT 与独立 SciPy constrained optimizer 的目标值误差 $7.76\times10^{{-9}}$；对称性、identity 和 C/PU 联合行置换检查通过。question-raw OT 的 identity 非零是边际定义所致，excess identity 为零。
-- 在 8 任务各 hash 选 1 图、64 个固定 trial 上比较 512 / 2048 空间质心与 full-token OT：[分辨率审计](../artifacts/token_proxy/encoder_candidates_v1/transport_resolution_audit.json)。512→full 的 uniform/问题增量排序相关约 0.851/0.861，但相对 MAE 约 52%；2048 仍有约 36%–39% 相对 MAE。因而**追加了全部 93,626 个 trial 的 full-token OT**，主表不使用粗空间近似。
-- [CPU float64 / NPU float32 交叉验证](../artifacts/token_proxy/encoder_candidates_v1/npu_transport_check.json)：同 64 个 full-token trial 的最大 loss 差 $8.94\times10^{{-8}}$。
-- 全量 full-token OT 的 per-trial 最大边际误差：median={d['max_marginal_error']['median']:.3g}、max={d['max_marginal_error']['max']:.3g}；**{d['trials_above_1e_6']:,}/{d['trial_count']:,}** 个 trial 的最大误差高于 $10^{{-6}}$（每 trial 包括复用的 teacher-self 求解）。因此不声称所有求解都精确满足目标阈值。最大迭代数 {d['max_iterations']['max']:.0f}。完整诊断见 JSON。
-- 合成满秩混合例中 $X\approx XC^+C$ 的相对 residual 约 $1.23\times10^{{-15}}$，说明 span 重建的结构盲区；这不是对全部真实 C 的满秩证明。记录的 `student_m_ge_d` 仅为行数条件，不能解释为实测秩。
-- set/span/固定空间读取 loss 对 C 和 PU 的联合行置换不变，而 causal decoder 不一定置换不变；因此这些指标不可能自动提供对任意 decoder 的保真保证。
-- generator、samples、head、line head 与关键源码 SHA256 保存在 protocol/analysis 中，完整输出另由 [final_audit.json](../artifacts/token_proxy/encoder_candidates_v1/final_audit.json) 逐图逐 trial 检查。源码与原始作答缓存不以结果好坏进行替换。
+- [Mathematical checks](../artifacts/token_proxy/encoder_candidates_v1/math_checks.json): objective discrepancy between tiny entropic OT and an independent SciPy constrained optimizer $7.76\times10^{{-9}}$; symmetry, identity, and joint C/PU row-permutation checks pass. Nonzero identity for question-raw OT follows from its marginal definition; excess identity is zero.
+- Compare 512 / 2,048 spatial centroids against full-token OT on one hash-selected image per task and 64 fixed trials across 8 tasks: [Resolution audit](../artifacts/token_proxy/encoder_candidates_v1/transport_resolution_audit.json) . Correlations between 512-token and full-token uniform/question-excess orderings are about 0.851/0.861, but relative MAE is about 52%; even at 2,048 tokens it is about 36%–39%. Therefore **full-token OT was added for all 93,626 trials**, and the primary table does not use a coarse spatial approximation.
+- [CPU float64 / NPU float32 cross-check](../artifacts/token_proxy/encoder_candidates_v1/npu_transport_check.json): maximum loss difference across the same 64 full-token trials $8.94\times10^{{-8}}$.
+- Per-trial maximum marginal error for full-token OT: median={d['max_marginal_error']['median']:.3g}, max={d['max_marginal_error']['max']:.3g}; **{d['trials_above_1e_6']:,}/{d['trial_count']:,}** trials have maximum error above $10^{{-6}}$ (including the reused teacher-self solve in each trial). Not every solve is claimed to meet the target tolerance. Maximum iteration count  {d['max_iterations']['max']:.0f}. See JSON for full diagnostics.
+- In the synthetic full-rank mixing example,  $X\approx XC^+C$ relative residual is about $1.23\times10^{{-15}}$, illustrating a structural blind spot of span reconstruction, not proving full rank for every actual C. Recorded  `student_m_ge_d` This is only a row-count condition, not measured rank.
+- Set/span/fixed-spatial-readout losses are invariant to jointly permuting C and PU, unlike a causal decoder in general; these metrics cannot automatically guarantee fidelity for arbitrary decoders.
+- Generator, samples, heads, line head, and key source SHA-256 values are in protocol/analysis; full outputs are additionally checked by [final_audit.json](../artifacts/token_proxy/encoder_candidates_v1/final_audit.json) Checks run per image/trial; source and original answer caches are never replaced according to favorable results.
 
-## 7. 如何解释和继续
+## 7. Interpretation and Next Steps
 
-本轮支持的结论是：**这组严格 encoder-only 的具体实例，在现有 balanced random convex-mixing 分布上，尚不足以充当可信的逐次下游质量 proxy。** 不支持推断“encoder 有问题”“所有 decoder-free 指标都不可能”或“按这些 loss 训练一定无效”。这不是上述参考论文原算法的完整复现，更不是对其方法有效性的反证。
+Supported conclusion: **these specific strict encoder-only instances are not yet reliable per-trial downstream-quality proxies under the current balanced random convex-mixing distribution.** The results do not establish a defective encoder, impossibility of all decoder-free metrics, or inevitable failure of training with these losses. This is not a complete reproduction of the referenced algorithms and does not refute their original effectiveness.
 
-问题权重依赖词法重合；数字 head 判断的是类型而非精确值；行结构不是语义关系；subspace 允许 LLM 不会实现的任意线性重建；随机 global mixing 会把空间证据大量聚拢。这些都是“loss 可变而下游已几乎全错”或“loss 小却仍丢失答案”的具体机制。另有 80% 左右零分和高平局率，令当前实验对较细差异的辨别力有限。
+Question weights rely on lexical overlap; the numeric head predicts types rather than exact values; line structure is not semantic relation understanding; subspace reconstruction permits arbitrary linear recovery unavailable to the LLM; random global mixing combines spatial evidence extensively. These explain varying loss despite near-zero downstream scores, or small loss despite lost answers. Around 80% zero scores and many ties further limit sensitivity to fine differences.
 
-所有 VQA 图像来自已经分析过的旧评测批次，因此是**探索性重放，不是未见过的确认性 holdout**。公式及组合未用 VQA 分数拟合，补充 line probe 与 OT 精度改进已明确标注；没有从结果中追选“最好方案”作为经验证的结论。
+All VQA images come from an already analyzed evaluation batch: **exploratory replay, not unseen confirmatory holdout**. VQA scores fit neither formulas nor combinations. Added line/OT-precision work is labeled, and no retrospective “best” is declared validated.
 
-下一步更值得做的是：先用独立 OCR/表格训练标注构建能区分“12.5 / 125 / 12.6”以及表头–值绑定的非生成式探针，并单独验证其准确率；再在下游不过度归零、仍有相同预算内随机差异的压缩分布上检验。若改变压缩族，应作为新的实验协议，不能替换本轮相同生成器的结果。若要声称跨 decoder 泛化，应冻结全部 loss 参数后迁移另一个接口/LLM 验证。
+A useful next step is to train and independently validate non-generative probes on separate OCR/table annotations, distinguishing values such as “12.5 / 125 / 12.6” and header–value bindings. Then test them on compression distributions that retain nonzero downstream performance and within-budget random variation. A changed compression family requires a new protocol rather than replacing this round's fixed-generator results. To claim cross-decoder generalization, freeze all loss parameters before testing another interface/LLM.
 
-## 8. 运行与文件入口
+## 8. Execution and File Locations
 
 ```bash
 cd /path/to/tessfold
-# 已有 .venv（CPU 统计/探针）和 .venv-und（Ascend encoder/OT），均为 venv。
+# Existing venvs: .venv for CPU statistics/probes; .venv-und for Ascend encoder/OT.
 bash scripts/run_encoder_candidates.sh status
-# 完整恢复/重跑：复用已有 checkpoint 和逐图缓存，提交有依赖关系的 Slurm jobs。
+# Recovery/rerun: reuse checkpoints and per-image caches; submit dependent Slurm jobs.
 bash scripts/run_encoder_candidates.sh submit
-# 已有所有 loss 时，仅重做统计、数值检查与 Markdown：
+# If all losses exist, recompute only statistics, numerical checks, and Markdown:
 bash scripts/run_encoder_candidates.sh check
 bash scripts/run_encoder_candidates.sh report
 ```
 
-`submit` 会串联：准备 OCR protocol → encoder-only OCR feature cache → evidence head（已有则复用）→ CPU candidates / line probe / full-token NPU OT → 数学检查与统计报告。**它要求原 `random_v1_20x` 作答/特征/矩阵缓存存在**；若从零生成下游缓存，先按 [20 倍规模运行文档](TOKEN_PROXY_20X.md) 操作。若修改 head/公式，必须使用新的实验目录或完整清理所有相关派生 loss，不能只替换权重后混用旧缓存。当前入口默认复用，不自动破坏既有实验。
+`submit` chains OCR protocol preparation → encoder-only OCR feature cache → evidence head (reuse if present) → CPU candidates / line probe / full-token NPU OT → mathematical checks and statistical reporting. **It requires the original  `random_v1_20x`  answer/feature/matrix caches**; to rebuild them from scratch, first follow the [20×-scale execution guide](TOKEN_PROXY_20X.md) instructions. Head/formula changes require a fresh experiment directory or removal of all derived losses, not new weights mixed with old cache. Defaults reuse existing experiments without destructive cleanup.
 
-| 文件 | 作用 |
+| File | Role |
 |---|---|
-| [protocol.json](../artifacts/token_proxy/encoder_candidates_v1/protocol.json) | 固定输入、超参数、排除变体、原矩阵/样本 hash |
-| [encoder_evidence.py](../vqa/encoder_evidence.py) / [encoder_candidate_losses.py](../vqa/encoder_candidate_losses.py) | 词法桥、采样 coverage、证据 JS、ridge、空间近似 OT |
-| [exact_encoder_transport_npu.py](../scripts/exact_encoder_transport_npu.py) | 完整 token OT，无空间合并 |
-| [train_encoder_evidence.py](../scripts/train_encoder_evidence.py) / [train_encoder_relation.py](../scripts/train_encoder_relation.py) | 独立 OCR / same-line head 训练 |
-| [report_encoder_candidates.py](../scripts/report_encoder_candidates.py) | 不平均 trial 的统计与完整 CSV |
-| [trials.csv](../artifacts/token_proxy/encoder_candidates_v1/trials.csv) | 所有 93,626 个 trial，gold/双作答/双分数/全部新 loss |
-| [counterexamples.json](../artifacts/token_proxy/encoder_candidates_v1/counterexamples.json) | 同题同率同族内低 loss 反而下降更大的具体作答对 |
-| [analysis.json](../artifacts/token_proxy/encoder_candidates_v1/analysis.json) | 全量 pooled、分层、bootstrap CI、control、诊断及源码 hash |
+| [protocol.json](../artifacts/token_proxy/encoder_candidates_v1/protocol.json) | Fixed inputs, hyperparameters, exclusions, and matrix/sample hashes |
+| [encoder_evidence.py](../vqa/encoder_evidence.py) / [encoder_candidate_losses.py](../vqa/encoder_candidate_losses.py) | Lexical bridge, sampled coverage, evidence JS, ridge, spatially approximated OT |
+| [exact_encoder_transport_npu.py](../scripts/exact_encoder_transport_npu.py) | Full-token OT, no spatial merging |
+| [train_encoder_evidence.py](../scripts/train_encoder_evidence.py) / [train_encoder_relation.py](../scripts/train_encoder_relation.py) | Independent OCR / same-line-head training |
+| [report_encoder_candidates.py](../scripts/report_encoder_candidates.py) | Unaveraged-trial statistics and complete CSV |
+| [trials.csv](../artifacts/token_proxy/encoder_candidates_v1/trials.csv) | All 93,626 trials: gold, both answers/scores, and all new losses |
+| [counterexamples.json](../artifacts/token_proxy/encoder_candidates_v1/counterexamples.json) | Actual answer pairs where lower loss gives greater drop at fixed question/retention/family |
+| [analysis.json](../artifacts/token_proxy/encoder_candidates_v1/analysis.json) | Full pooled/stratified statistics, bootstrap CIs, controls, diagnostics, and source hashes |
 
-CSV 的 `ratio` 是**保留率 M/N**；`score_drop` 越大越差；loss 越大按设计也应越差。`loss_sinkhorn_full_question_excess`、`loss_evidence_combined_line_question` 等为本报告字段；按 `sample_id / family / ratio` 筛选两个 seed，便可查看不经平均的直接对照。
+in the CSV  `ratio` is **retention M/N**; `score_drop` Larger means worse; the proposed loss should also increase with degradation.`loss_sinkhorn_full_question_excess`, `loss_evidence_combined_line_question` are report fields; by  `sample_id / family / ratio` Filter the two seeds for a direct unaveraged comparison.
 '''
     text=text.replace(chr(92)*2,chr(92))
     (ROOT/'docs/ENCODER_ONLY_LOSS_VALIDATION.md').write_text(text)

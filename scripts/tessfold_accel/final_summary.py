@@ -8,50 +8,50 @@ def main():
     for stage,digest in audit['stage_complete_sha256'].items():assert sha(BASE/stage/'complete.json')==digest
     assert (BASE/'all_stages_complete.json').exists()
     native=load(BASE/'qwen_formal/complete.json');registry=load(BASE/'qwen_selected_runs.json');stats=load(BASE/'bidir_interleaved/statistics.json')
-    names={'REF':'未压缩原生8B','Column_r0.25':'Column 25%','Tree_r0.25':'Tree 25%','Column_r0.5':'StableColumn 50%','Tree_r0.5':'Tree 50%'}
+    names={'REF':'Uncompressed native 8B','Column_r0.25':'Column 25%','Tree_r0.25':'Tree 25%','Column_r0.5':'StableColumn 50%','Tree_r0.5':'Tree 50%'}
     methods=['REF','Column_r0.25','Tree_r0.25','Column_r0.5','Tree_r0.5'];tasks=['DocVQA','InfoVQA','ChartQA','OCRBench','DeepForm','KLC','WTQ','DT-VQA']
-    doc=['# TessFold本轮最终结果与阅读入口','',f'结果汇总UTC：{now()}。**全部13阶段完成，最终审计通过，训练与评测任务已退出。**','',
-        '本轮已完成原UND零重训工程优化，以及原生Qwen3-VL-8B压缩器四组20k×4epochs训练、独立全量测试。tessfold.md的预期并未全部达到；这里保留实际结果及限制。原模型、历史预测和负结果均未覆盖。','',
-        '## 优先阅读','',
-        '- [完整实验设计、过程、分数、时延、内存与曲线](TESSFOLD_ACCELERATION_AND_8B_RESULTS.md)','- [tessfold.md逐项目标对照与未达目标](TESSFOLD_TARGET_GAP.md)',
-        '- [视觉注意力范围问题：直接算子证据及双向修复](TESSFOLD_ATTENTION_WINDOW_DIAGNOSIS.md)',
-        '- [实际原生8B架构和训练方法](TESSFOLD_NATIVE8B_METHOD.md) · [验证协议](TESSFOLD_FINAL_VALIDATION_PROTOCOL.md) · [环境及入口](TESSFOLD_RUNTIME_REPRODUCTION.md)',
-        '- [UND实测论文表](TESSFOLD_PAPER_EFFICIENCY_TABLE.md) · [8B及融合扩展论文表和图](TESSFOLD_PAPER_EXTENSION_TABLES.md)','',
-        '## 1. 原UND严格路径：完全保留原压缩结果','',
-        '编译切分、缓存几何、避开整数排序CPU回退、消除多余merger。完整23565QA×4配置的94260条P/PH/生成检查全部相同。这里的无损是“新实现对原压缩模型相同”，不是“压缩与未压缩同分”。',
-        '原FP32 softmax/GEMM仍保留，因此没有获得逐位相同的O(N)soft替代。448例纯压缩中位约2.20ms；完整90题自然EOS压缩+merger中位Column25%3.42ms、Tree25%4.10ms，原部署约26ms。完整效率9450条、额外交错2520条、864真实同页运行/8640题次、144真实batch均完成。','',
-        '纯特征及免重复processor缓存与冷启动逐token相同。K=10公平缓存：REF313.86ms/题、Column235.09ms/题，加速1.335倍，95%页面CI[1.202,1.469]，均计首次摄入。prefix KV在完整测试中仍有token变化，Column共享macro差−0.0044pp、95%CI[−0.1307,+0.1244]；它是独立数值路径，不默认称无损。','',
-        'Hard无稠密P读出的23565QA完整macro为38.2395，所有token与历史Hard一致；Soft Tree25%为38.4705，分数接近不等于等效检验。','',
-        '## 2. 显式双向融合：本轮重要修复','',
-        '作者Ascend分支传入mask却没有指定next_tokens，安装版本默认0。直接Q/K/V试验显示，1024长度下原调用接近受限分块注意力；显式pre/next=INTMAX接近完整双向参考。它仍与eager存在舍入差异，不能替代严格路径的Bit-Exact结论。首次原调用降16.68pp的负结果保留。修正版本56题先导通过后，完整独立评测23565QA×5配置，并额外完成2700条时延/450条独立内存及2160条同题交错测速。','',
-        '共享宏分相对原eager变化：REF+0.1133、Column25%+0.2638、Tree25%−0.1956、Column50%−0.1947、Tree50%+0.0983pp，各宏分CI均跨零，不能据此宣称统计等效。具体任务变化见完整报告。','',
-        '|同题交错比较，自然EOS|端到端加速|端到端95%页面CI|TTFT加速|TTFT 95%页面CI|','|---|---:|---|---:|---|']
+    doc=['# TessFold Final Results and Reading Guide','',f'Results compiled (UTC):{now()}. **All 13 stages and the final audit are complete; training/evaluation jobs have exited.**','',
+        'Completed inference-only UND optimization and four native-Qwen3-VL-8B 20k×4-epoch compressor runs with full independent evaluation. Not all tessfold.md targets are reached; measured outcomes/limitations and original models/history/negative results remain.','',
+        '## Recommended Reading Order','',
+        '- [Full design, procedure, scores, latency, memory, and curves](TESSFOLD_ACCELERATION_AND_8B_RESULTS.md)','- [Progress and remaining gaps against tessfold.md](TESSFOLD_TARGET_GAP.md)',
+        '- [Visual-attention range: direct operator evidence and bidirectional repair](TESSFOLD_ATTENTION_WINDOW_DIAGNOSIS.md)',
+        '- [Actual native 8B architecture and training method](TESSFOLD_NATIVE8B_METHOD.md) · [Validation protocol](TESSFOLD_FINAL_VALIDATION_PROTOCOL.md) · [Environment and entry points](TESSFOLD_RUNTIME_REPRODUCTION.md)',
+        '- [Measured UND manuscript tables](TESSFOLD_PAPER_EFFICIENCY_TABLE.md) · [8B/fusion manuscript tables and figures](TESSFOLD_PAPER_EXTENSION_TABLES.md)','',
+        '## 1. Strict UND Path: Exact Preservation of Compression Outputs','',
+        'Compile partitioning, cache geometry, avoid integer-sort CPU fallback, and remove redundant merger. All 94,260 P/PH/generation checks across 23,565 QA×4 configurations match. Lossless means new-versus-original compressed implementation, not teacher-equivalent accuracy.',
+        'Original FP32 softmax/GEMM are retained, so no bit-exact O(N) soft replacement has been obtained. Median compressor-only latency across 448 cases is about 2.20 ms. On the full 90-question natural-EOS deployment set, compression+merger medians are 3.42 ms for Column25% and 4.10 ms for Tree25%, versus about 26 ms previously. Completed tests comprise 9,450 full-efficiency records, 2,520 additional interleaved records, 864 real same-page runs / 8,640 question executions, and 144 real batches.','',
+        'Feature caching and avoiding repeated processing match cold-start tokens exactly. Fair K=10 caching gives REF 313.86 ms/question and Column 235.09 ms/question, speedup 1.335× with 95% page CI [1.202,1.469], including initial ingestion. Prefix KV still changes some tokens on full evaluation: Column shared-macro difference −0.0044 pp, 95% CI [−0.1307,+0.1244]. It is a separate numerical path, not assumed lossless.','',
+        'Hard without dense-P readout scores macro 38.2395 on all 23,565 QA, with tokens matching historical Hard. Soft Tree25% scores 38.4705; close point estimates do not constitute an equivalence test.','',
+        '## 2. Explicit Bidirectional Fusion: A Key Repair','',
+        'The author\'s Ascend branch supplies a mask but omits next_tokens, whose installed default is 0. Direct Q/K/V tests show that the original length-1024 call resembles restricted block attention, while explicit pre/next=INTMAX resembles full bidirectional attention. Rounding differences from eager remain; this cannot replace strict-path bit-exact evidence. The initial −16.68 pp result is retained. After a 56-question pilot passed, the corrected variant received independent evaluation on 23,565 QA × 5 configurations, plus 2,700 timing, 450 independent memory, and 2,160 same-question interleaved timing records.','',
+        'Shared-macro changes versus eager: REF +0.1133, Column25% +0.2638, Tree25% −0.1956, Column50% −0.1947, Tree50% +0.0983 pp. All macro CIs cross zero, which does not establish equivalence. Full task changes are in the report.','',
+        '|Interleaved same-question comparison, natural EOS|End-to-end speedup|End-to-end 95% page CI|TTFT speedup|TTFT 95% page-level CI|','|---|---:|---|---:|---|']
     for r in stats['comparisons']:
         if r['mode']=='natural_eos' and ((r['reference_backend']=='EAGER' and r['reference_method']=='REF' and r['candidate_backend']=='BIDIR') or (r['reference_backend']=='BIDIR' and r['reference_method']=='REF')):
             ci=r['e2e_document_bootstrap_95_ci'];ti=r['ttft_document_bootstrap_95_ci']
             doc.append(f'|{r["reference_backend"]}/{r["reference_method"]}→{r["candidate_backend"]}/{r["candidate_method"]}|{r["e2e_speedup"]:.3f}×|[{ci[0]:.3f},{ci[1]:.3f}]|{r["ttft_speedup"]:.3f}×|[{ti[0]:.3f},{ti[1]:.3f}]|')
-    doc+=['','同一融合后端的独立内存：REF全流程峰值4.279GiB，25%学生约3.736GiB。旧eager REF约6.410GiB，但两种部署是独立测量和数值路径，不能把融合带来的全部内存收益归因于P。','',
-        '## 3. 原生8B：四组训练确实改善独立泛化','',
-        '采用完整Qwen3-VL-8B-Instruct及其自己的视觉塔和merger；全部基模冻结，只训练新增空间P。P在原生merger后，同时作用于final视觉特征和3条DeepStack，保留代表MRoPE。它不是UND视觉塔与8B语言模型的嫁接实验。','',
-        '每组先通过多图先导，再独立20k×4epochs；仅用文档互斥56QA dev选checkpoint。原生8B正式23565QA，DeepForm/KLC用DUE corpus F1，其余任务原生指标，八任务等权。另保存旧共享fieldEM口径，不能混算。','',
-        '|模型|DocVQA ANLS|InfoVQA ANLS|ChartQA|OCRBench|DeepForm F1|KLC F1|WTQ|DT-VQA|原生macro|','|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
+    doc+=['','Independent memory on the same fused backend: REF full peak 4.279 GiB, 25% students about 3.736 GiB. Old eager REF is about 6.410 GiB, but these are separate measured numerical paths; not all fusion-related memory gains belong to P.','',
+        '## 3. Native 8B: Four Training Runs Improve Independent Generalization','',
+        'Use complete Qwen3-VL-8B-Instruct with its own vision/merger, all frozen except new spatial P. Post-merger P aggregates final features plus 3 DeepStack branches and retains representative MRoPE. This is not UND-vision/8B-LLM grafting.','',
+        'Each configuration passes a multi-image pilot before fresh 20k×4 training. Select only on image-disjoint 56-QA development. Formal native8B uses 23,565 QA, DUE corpus F1 for DeepForm/KLC, native others, task-equal macro. Old shared field-EM is saved separately.','',
+        '|Model|DocVQA ANLS|InfoVQA ANLS|ChartQA|OCRBench|DeepForm F1|KLC F1|WTQ|DT-VQA|Native macro|','|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     for m in methods:
         v=native['native_metric_results'][m];doc.append('|'+names[m]+'|'+'|'.join(f'{v["by_task"][t]:.2f}' for t in tasks)+f'|{v["macro"]:.2f}|')
-    doc+=['','512图/2404QA独立固定子集的初始P与训练后P逐题配对，不参与选择：','',
-        '|模型|初始原生macro|训练后原生macro|改善pp|','|---|---:|---:|---:|']
+    doc+=['','Initial/trained P are paired on a fixed independent 512-image/2,404-QA subset that does not select models: ','',
+        '|Model|Initial native macro|Trained native macro|Improvement (pp)|','|---|---:|---:|---:|']
     for m in methods[1:]:
         v=native['initial_control_results']['comparisons'][m];doc.append(f'|{names[m]}|{v["initial"]["native_macro"]:.2f}|{v["selected"]["native_macro"]:.2f}|{v["native_macro_delta"]:+.2f}|')
-    doc+=['','训练后macro在独立子集均改善，但25%保留率仍有较大质量损失；在这轮预定配置中Tree50%最接近teacher，完整macro低3.492个百分点，DocVQA低2.871个百分点。这是结果描述，不按测试结果回头选择其他epoch。','',
-        '新版8B完整冷请求25%保留率TTFT仅约1.14–1.15倍、端到端约1.08倍，未达到参考2.2–3.1倍。实际原始LLM视觉token中位UND4960、原生8B945；8B本身先做原生merger，不能仅凭参数量预言更大压缩收益。前端均值132.10ms/TTFT220.85ms，保持前端不变的理想零后端上界约1.672倍。','',
-        '## 4. 审计、产物及保留限制','',
-        '最终330项源引用签名检查通过；四组12500步连续，LR/clip和实际optimizer状态吻合；初始+4epochs共1120条dev指标重算通过。1350条8B自然时延与正式输出相同，1350条独立内存与时延输出相同；双向融合1800条natural时延/内存与正式输出相同。全部trace签名及并行续跑前26990/34132条预测原样保留的检查通过。','',
-        '- [最终审计JSON](../artifacts/tessfold_acceleration_20261115/final_audit.json) · [完成标志](../artifacts/tessfold_acceleration_20261115/all_stages_complete.json)',
-        '- [完整分数及初始对照](../artifacts/tessfold_acceleration_20261115/qwen_formal/complete.json)',
-        '- [逐题gold/teacher/student损失对照CSV](../artifacts/tessfold_acceleration_20261115/error_analysis/largest_losses.csv)',
-        '- [完整测试/独立对照PDF图](../artifacts/tessfold_acceleration_20261115/figures/native8b_quality_and_controls.pdf)',
-        '- [逐epoch损失、生成分数和梯度诊断](TESSFOLD_8B_TRAINING_DIAGNOSTICS.md)','',
-        '没有达到严格soft<0.8ms、四倍实际吞吐或8B冷请求2.2–3.1倍加速。视觉KV减少不等于相同幅度的全设备峰值减少。固定dev较小、训练只有单seed；KLC/DeepForm原生8B基线本身偏低；teacher训练前缀35/20000条截断；这些限制仍保留。旧结果不删除，新数值变体不继承旧准确率。','',
-        '结果重建：`.venv/bin/python -m scripts.tessfold_accel.finish_report --require-complete`；本页：`.venv/bin/python -m scripts.tessfold_accel.final_summary`。已完成阶段不需要重新提交训练。']
+    doc+=['','All trained macros improve on the independent subset, but 25% still loses substantial quality. Among prespecified configurations, Tree50% is closest to teacher: full macro −3.492 pp, DocVQA −2.871 pp. This describes results without test-based epoch reselection.','',
+        'At 25% retention, native 8B full cold-request TTFT speedup is only about 1.14–1.15× and E2E about 1.08×, below the proposed 2.2–3.1×. Median original LLM visual-token counts are 4,960 for UND and 945 for native 8B, whose native merger already reduces tokens. Model size alone cannot predict larger compression gains. Frontend mean=132.10 ms versus TTFT=220.85 ms gives an ideal zero-backend upper bound of about 1.672× with the frontend unchanged.','',
+        '## 4. Audits, Outputs, and Remaining Limitations','',
+        'All 330 source-reference signature checks pass. Four runs have 12,500 consecutive steps with matching LR/clipping and actual optimizer state; initial + 4 epochs give 1,120 recomputed development records. All 1,350 native-8B natural-timing outputs match formal outputs, and 1,350 independent memory outputs match timing outputs. The 1,800 bidirectional-fusion natural timing/memory outputs also match formal generation. All trace signatures pass, as do checks preserving the 26,990/34,132 predictions from before parallel resumption.','',
+        '- [Final-audit JSON](../artifacts/tessfold_acceleration_20261115/final_audit.json) · [Completion marker](../artifacts/tessfold_acceleration_20261115/all_stages_complete.json)',
+        '- [Full scores and initial controls](../artifacts/tessfold_acceleration_20261115/qwen_formal/complete.json)',
+        '- [Per-question gold/teacher/student score-drop CSV](../artifacts/tessfold_acceleration_20261115/error_analysis/largest_losses.csv)',
+        '- [Full-evaluation / independent-control figure PDF](../artifacts/tessfold_acceleration_20261115/figures/native8b_quality_and_controls.pdf)',
+        '- [Per-epoch loss, generation-score, and gradient diagnostics](TESSFOLD_8B_TRAINING_DIAGNOSTICS.md)','',
+        'Strict soft latency <0.8 ms, fourfold actual throughput, and 8B cold-request speedups of 2.2–3.1× are not achieved. Reduced visual KV does not imply proportional device-wide peak-memory reduction. Limitations remain: small fixed development set, one training seed, low native8B KLC/DeepForm baseline, and 35/20,000 truncated teacher prefixes. Old results remain; new numerical variants do not inherit old accuracy.','',
+        'Rebuild results: `.venv/bin/python -m scripts.tessfold_accel.finish_report --require-complete`; this page: `.venv/bin/python -m scripts.tessfold_accel.final_summary`. Completed stages require no new training submission.']
     path=ROOT/'docs/TESSFOLD_FINAL_RESULTS.md';path.write_text('\n'.join(doc)+'\n')
     save(BASE/'final_summary.json',dict(time=now(),report=str(path.relative_to(ROOT)),final_audit_sha256=sha(BASE/'final_audit.json'),complete_sha256=sha(BASE/'all_stages_complete.json')))
     print(path)

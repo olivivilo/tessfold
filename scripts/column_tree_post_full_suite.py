@@ -130,7 +130,7 @@ def prepare():
                                   by_task=dict(collections.Counter(r['task'] for r in cohort['formal_benchmark'])))
     registration = dict(
         registered_utc=now(), suite='column_tree_post_full_20261108',
-        user_request='继续merger前剩余任务；merger后Qwen之前，问题条件空间树和自适应列划分各10%/25%/50%/75%全量训练评测，记录设计过程结果',
+        user_request='Finish pre-merger work; then fully train/evaluate both spatial-tree and adaptive-column generators after merger/before Qwen at 10%/25%/50%/75%, recording design, procedure, and results',
         clarification='Eight fresh post-merger runs, paired with all eight registered pre-merger runs. No reuse of pre-merger generator weights or benchmark predictions.',
         runs=records, new_runs=sum(not r['reuse'] for r in records), reused_runs=sum(r['reuse'] for r in records),
         dataset=data, train_validation_benchmark_document_disjoint=True,

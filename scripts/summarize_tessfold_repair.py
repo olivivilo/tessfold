@@ -86,44 +86,44 @@ def main():
         phase_boundary='encoder denotes the timed tower call: old DENSE/S includes native full-length merger; clean REF/STRICT uses Identity merger and aligns in compression_and_merger. post_encoder_ttft is literal post-tower, not a uniform physical post-ViT boundary across all methods. E2E includes all work.',
         interpretation='Paired ratio of QA mean latencies, with pages jointly resampled; finite 90-QA cohort, fixed model order, shared Slurm nodes. Not production concurrent throughput.')
     save(BASE/'measured_interpretation.json',audit)
-    doc=['# TessFold 修复闭环：实测结果解读','',f'生成时间 UTC：{now()}。','',
-         '**入口**：`.venv/bin/python -m scripts.summarize_tessfold_repair`。仅消费完成并通过审计的结果，不改变实验或选择模型。','',
-         '## 正确性结论','',
-         f'448/448 真实 UND 回归通过。原 P、PH、merger 输出逐位相等，严格路径与历史及新清理路径生成 token 相等。前缀 KV 门槛有 {val["prefix_reuse_token_mismatches"]}/48 次 token 不一致，因此本轮未启用前缀 KV 缓存；未把它包装成无损优化。','',
-         f'另对照已经完成的独立原生 generate 显存实验，REF、两预算两方法的旧/新路径共 {native_audit["compared"]} 条自然终止/固定64记录全部生成 token 一致，覆盖本轮全部90道计时问题。','',
-         f'FP32 分段候选 {val["candidate_mismatches"]["segmented_fp32"]}/448 次特征不逐位相等，BF16 候选 {val["candidate_mismatches"]["segmented_bf16"]}/448 次不相等；FP64 分区 {val["integral_partition_mismatches"]}/448 次改变分区。均没有晋升默认实现。','',
-         '## 时延：严格路径相对原路径和 REF','',
-         '90 道固定问题，每题每种模式三次。下表为自然终止模式的平均端到端时延比；先对每题三次取均值，再按页面成组 bootstrap 10,000 次。比值大于 1 表示候选更快。中位 TTFT、分阶段时延、固定 64 步和完整配置表见主报告及 JSON。','',
-         '|参考|候选|保留率|参考均值 ms|候选均值 ms|平均时延加速比|页面 bootstrap 95% CI|',
+    doc=['# TessFold Repair: Interpretation of Measured Results','',f'Generated (UTC):{now()}. ','',
+         '**Entry point**: `.venv/bin/python -m scripts.summarize_tessfold_repair`. Uses only completed audited results, without changing experiments or selecting models.','',
+         '## Correctness Findings','',
+         f'448/448 real-UND regressions pass: P, PH, and merger outputs are bit-exact; strict generation matches historical and newly cleaned paths. Prefix-KV checks have  {val["prefix_reuse_token_mismatches"]}/48 token mismatches; prefix KV is disabled in this round and is not presented as lossless optimization.','',
+         f'Additional comparison against completed native-generate memory tests covers REF and both methods/budgets, old/new paths, totaling  {native_audit["compared"]}  natural/fixed64 records have identical generated tokens across all 90 timing questions.','',
+         f'FP32 segmented candidate {val["candidate_mismatches"]["segmented_fp32"]}/448 non-bit-exact feature cases; BF16 candidate  {val["candidate_mismatches"]["segmented_bf16"]}/448 unequal cases; FP64 partitions  {val["integral_partition_mismatches"]}/448 changed partitions. Neither was promoted to the default.','',
+         '## Latency: Strict Path Versus Original Path and REF','',
+         '90 fixed questions, three repeats/question/mode. Below are natural-EOS mean E2E latency ratios: average repeats within question, then bootstrap page clusters 10,000 times. Ratios >1 favor the candidate. Median TTFT, stage timings, fixed64, and full configurations are in the main report/JSON.','',
+         '|Reference|Candidate|Retention fraction|Reference mean (ms)|Candidate mean (ms)|Mean-latency speedup|Page-bootstrap 95% CI|',
          '|---|---|---:|---:|---:|---:|---|']
     for r in paired:
         if r['mode']=='natural_eos' and r['field']=='end_to_end_ms':
             lo,hi=r['document_bootstrap_95_ci']
             doc.append(f'|{r["reference"]}|{r["candidate"]}|{r["ratio"]:.0%}|{r["reference_mean_ms"]:.2f}|{r["candidate_mean_ms"]:.2f}|{r["speedup"]:.3f}×|[{lo:.3f}, {hi:.3f}]|')
-    doc+=['','## 显存：全流程峰值与 decoder 峰值分开','',
-          '独立的 1 ms 内存采样 pass 共 1,350 次，与 8,100 次时延测量分开。下表取 90 请求中的最大 allocator peak；decoder 峰值取 prefill/generation 两阶段最大值。不是整卡 npu-smi 显存，也不是均值。','',
-          '|方法|保留率|全流程最大峰值 GiB|decoder 最大峰值 GiB|decoder 请求峰值中位数 GiB|',
+    doc+=['','## Memory: Full-Pipeline and Decoder Peaks Reported Separately','',
+          'The independent 1 ms memory pass has 1,350 measurements separate from 8,100 timing records. The table takes the maximum allocator peak across 90 requests; decoder peak is the maximum of prefill/generation. These are neither npu-smi device-wide memory nor mean occupancy.','',
+          '|Method|Retention fraction|Maximum full-pipeline peak (GiB)|Maximum decoder peak (GiB)|Median request decoder peak (GiB)|',
           '|---|---:|---:|---:|---:|']
     for r in memstats:
         if r['method'] in ['REF','C_DENSE','C_STRICT','T_DENSE','T_STRICT']:
             doc.append(f'|{r["method"]}|{r["ratio"]:.0%}|{r["whole_request_peak_max_gib"]:.4f}|{r["decoder_peak_max_gib"]:.4f}|{r["decoder_peak_median_gib"]:.4f}|')
-    doc+=['','压缩发生在 encoder 之后，已发生的 encoder 峰值无法消除。减少 decoder 工作集与降低端到端最高峰是两种不同结论。','',
-          '## 同页多问题','',
-          f'24 张真实页面、每页 10 个不同问题、REF/Column/Tree、三轮。实际启用场景：{load(BASE/"multi/complete.json")["scenarios"]}。缓存与 cold 路径逐题生成 token 不一致次数：{multi["cache_generation_mismatches"]}。','',
-          '所有方法均享有相同的特征缓存权限。Column 复用页面压缩结果；Tree 仍逐题重算问题相关压缩。计入首次摄入，K=1/2/5/10 为相同十题序列的前 K 题，不重复问题凑数。实际均摊时延表见主报告。该页面子集仅覆盖 DocVQA/InfoVQA/WTQ/OCRBench，不代表八任务总体准确率。','',
-          '## 边界与新版 Qwen','',
-          '`encoder`阶段计时的边界是vision tower返回：旧DENSE与S的tower调用包含原生全长merger，新REF/STRICT则在tower内跳过merger、在后续阶段执行。因此`post_encoder_ttft_ms`对全体方法应严格解释为“tower调用结束后的TTFT”，不是所有配置统一的纯ViT物理边界。新REF与STRICT之间的边界一致；旧/新DENSE比较优先使用包含全部工作的端到端时延，不据该阶段差分杜撰独立全长merger耗时。','',
-          '本轮没有重训或替换官方 UND；严格路径对照通过后才解释性能。候选方法单列，不把 hard 当作 soft 的无损实现。时延来自有同步与钩子的 batch=1 测量，模型执行顺序固定、节点由 Slurm 共享；queries/s 是串行均摊速率，不是最大并发压测吞吐。','',
-          '本轮UND主实验的 LLM 是 Qwen3-1.7B。Qwen2.5-VL-7B 从未接入；新版 Qwen3-VL-8B/Qwen3.5-9B 的官方配置已核对，但无法直接继承 2048 维视觉对齐和问题桥。详见 [新版 Qwen 兼容性检查](TESSFOLD_QWEN_UPGRADE_FEASIBILITY.md)。','',
-          (f'另已跑通独立的 [Qwen3-VL-8B原生与短答案56题对照](TESSFOLD_QWEN3VL_8B_PROMPT_COMPARISON.md)，七任务探索性宏平均原问题{extension["macro_score_percent"]:.2f}、统一短答案{short_extension["macro_score_percent"]:.2f}。使用它自己的视觉编码器与对齐，不是UND内部LLM替换，也不代表旧压缩器已迁移。不能与23565题八任务正式成绩直接比较。' if short_extension else '独立Qwen3-VL-8B完整对照尚未完成；本报告不填该分支未执行的分数。'),' ',
-          '[完整实测报告](TESSFOLD_SYSTEM_REPAIR_20261115.md) · [原始结果目录](../artifacts/tessfold_system_repair_20261115/) · [机器可读解读](../artifacts/tessfold_system_repair_20261115/measured_interpretation.json)']
+    doc+=['','Compression follows encoding and cannot remove an already incurred encoder peak. Reducing decoder working memory and reducing the maximum E2E peak are distinct claims.','',
+          '## Multiple Questions on the Same Page','',
+          f'24 real pages, 10 distinct questions/page, REF/Column/Tree, three repeats. Enabled scenarios: {load(BASE/"multi/complete.json")["scenarios"]}. Questions with cache-versus-cold generated-token mismatches: {multi["cache_generation_mismatches"]}. ','',
+          'All methods have equal feature-cache access. Column reuses page compression; Tree recomputes question-dependent compression. Initial ingestion is included. K=1/2/5/10 uses prefixes of one ten-question sequence without duplicating questions. See the main report for amortized latency. This page subset covers DocVQA/InfoVQA/WTQ/OCRBench only, not overall eight-task accuracy.','',
+          '## Scope and the Newer Qwen Backbone','',
+          '`encoder`Timing boundary is tower return: old DENSE/S include full native merger inside tower, while new REF/STRICT skip it there and run it later. Therefore `post_encoder_ttft_ms`Across methods, interpret this strictly as TTFT after the tower call, not a common pure-ViT boundary. New REF/STRICT boundaries match. Compare old/new DENSE by full E2E rather than inventing independent full-merger latency from stage differences.','',
+          'The official UND backbone is neither retrained nor replaced; performance is interpreted only after strict-path checks pass. Candidates are separate; hard selection is not a lossless implementation of soft aggregation. Batch=1 timings include synchronization/hooks, fixed model order, and Slurm-shared nodes. queries/s is serial amortized rate, not maximum concurrent throughput.','',
+          'The main UND LLM is Qwen3-1.7B. Qwen2.5-VL-7B was never attached. Official Qwen3-VL-8B/Qwen3.5-9B configs were checked, but cannot inherit 2,048-dimensional alignment/question bridging directly. See [New-Qwen compatibility](TESSFOLD_QWEN_UPGRADE_FEASIBILITY.md). ','',
+          (f'Separately completed [56-question native/short-answer Qwen3-VL-8B comparison](TESSFOLD_QWEN3VL_8B_PROMPT_COMPARISON.md), exploratory seven-task macro: original prompt {extension["macro_score_percent"]:.2f}, uniform short answers {short_extension["macro_score_percent"]:.2f}. It uses its own visual encoder/alignment, not an UND LLM replacement or transfer of the earlier compressor. It is not directly comparable to 23,565-QA/eight-task formal scores.' if short_extension else 'Independent full Qwen3-VL-8B comparison incomplete; unexecuted scores remain blank.'),' ',
+          '[Full measured report](TESSFOLD_SYSTEM_REPAIR_20261115.md) · [Original result directory](../artifacts/tessfold_system_repair_20261115/) · [Machine-readable interpretation](../artifacts/tessfold_system_repair_20261115/measured_interpretation.json)']
     path=ROOT/'docs/TESSFOLD_REPAIR_MEASURED_RESULTS.md'
     path.write_text('\n'.join(doc)+'\n')
     primary=ROOT/'docs/TESSFOLD_SYSTEM_REPAIR_20261115.md'
     content=primary.read_text()
-    marker='\n## 完成后的独立审计与阶段边界说明\n'
+    marker='\n## Post-Completion Independent Audit and Stage Boundaries\n'
     content=content.split(marker)[0]
-    content+=marker+'\n完整实验与历史原生generate的逐token核对、页面bootstrap和内存解读见 [实测结果解读](TESSFOLD_REPAIR_MEASURED_RESULTS.md)。\n\n'+audit['phase_boundary']+'\n'
+    content+=marker+'\nComplete tokenwise comparison with historical native generate, page bootstraps, and memory interpretation: [Measured-results interpretation](TESSFOLD_REPAIR_MEASURED_RESULTS.md). \n\n'+audit['phase_boundary']+'\n'
     primary.write_text(content)
     print(json.dumps(dict(report=str(path),comparisons=len(paired),memory_configs=len(memstats))))
 

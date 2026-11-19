@@ -1,6 +1,6 @@
-# 环境构建
+# Installation
 
-使用 Python 3.10 与 venv。`pyproject.toml` 固定了核心模型接口版本，特别是 PyTorch 2.8.0、Transformers 4.57.1、tokenizers 0.22.2 和 qwen-vl-utils 0.0.14。C++ 分区器需要 `g++`，首次执行时编译到被忽略的 `artifacts/`；编译参数禁止 fast-math/FMA 重结合。
+Use Python 3.10 and `venv`. `pyproject.toml` pins the core model-interface versions, including PyTorch 2.8.0, Transformers 4.57.1, tokenizers 0.22.2, and qwen-vl-utils 0.0.14. The C++ partitioner requires `g++`. On first use, it compiles into the Git-ignored `artifacts/` directory with fast-math and floating-point contraction disabled.
 
 ## CPU
 
@@ -17,7 +17,7 @@ python3.10 -m venv .venv
 ```bash
 python3.10 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip setuptools wheel
-# 在 PyTorch 官方安装页面选择与驱动匹配的 2.8.0 / 0.23.0 CUDA wheel。
+# Select PyTorch 2.8.0 / torchvision 0.23.0 CUDA wheels compatible with your driver.
 .venv/bin/python -m pip install torch==2.8.0 torchvision==0.23.0
 .venv/bin/python -m pip install -e '.[test,analysis]'
 .venv/bin/python -m tessfold pilot --config configs/local/run.json --device cuda
@@ -25,8 +25,7 @@ python3.10 -m venv .venv
 
 ## Ascend
 
-历史硬件路线为 Ascend，Python 3.10/aarch64、CANN 8.5、torch-npu 2.8.0.post5。
-先由宿主机安装匹配的驱动、CANN 和 vendor wheels；它们不由 Python 仓库打包。
+The historical Ascend environment used Python 3.10 on aarch64, CANN 8.5, and torch-npu 2.8.0.post5. Install compatible host drivers, CANN, and vendor wheels first; these system components are not distributed in this Python repository.
 
 ```bash
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
@@ -38,16 +37,15 @@ export TOKENIZERS_PARALLELISM=false
 .venv/bin/python -m tessfold pilot --config configs/local/run.json --device npu
 ```
 
-不同机器的驱动和 wheel 来源不同，不能把原机器的 `.venv-und`、`.pth` 或本地安装路径当作可发布环境。`auto` 仅自动选择 CUDA 或 CPU；Ascend 请显式指定 `npu`。
+Drivers and wheel sources vary between hosts. The original machine's `.venv-und`, `.pth` files, and installation paths do not constitute a portable environment. `auto` selects CUDA or CPU only; specify `npu` explicitly for Ascend.
 
-`requirements-legacy.txt` 是历史数据转换、统计、基线/可选 LoRA 脚本的额外依赖。
-官方 ms-swift 微调还需按上游 MonkeyOCRv2 安装；本仓库不附第三方 checkout。
+`requirements-legacy.txt` lists additional dependencies for historical data conversion, statistics, baselines, and optional LoRA scripts. Official ms-swift fine-tuning requires a separate installation following the upstream MonkeyOCRv2 instructions. Third-party checkouts are excluded.
 
-构建 wheel：
+## Building a wheel
 
 ```bash
 .venv/bin/python -m pip install build
 .venv/bin/python -m build --wheel
 ```
 
-wheel 包含 C++ 源码和来源重建配方。运行时的模型、数据和输出仍需独立准备。
+The wheel includes the C++ sources and source-reconstruction recipes. Models, data, and runtime outputs must be prepared separately.

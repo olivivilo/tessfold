@@ -103,10 +103,10 @@ def collect(run):
 def expanded_overview(results):
     selected=[r for r in results if r['name'].startswith('early_expanded') or r['name']=='full_verified_family']
     if not selected:return []
-    lines=['## 扩大训练与重复 seed：最新完整 epoch','',
-           '每行使用同一 epoch 的完整训练审计和验证记录；正在评测的 epoch 不计入分数。初始→最新表示同预算、同位置、同 seed 的训练变化。',
-           '训练审计为固定训练子集，不是所有训练 batch 的均值。只有完成预定 epochs、重复 seed 和独立确认通过，才认定本轮稳定泛化。当前选择以总 loss/VQA 为主，保留原分项 KL 严格判定作诊断；变更属于看过调参结果后的自适应方案，独立确认未据此放宽。','',
-           '| 位置 / 保留率 / seed | global batch / LR | 完整 epoch | 更新步 | 训练分数 初始→最新 | 验证分数 初始→最新 | 训练 total 初始→最新 | 验证 total 初始→最新 | 验证 KL 初始→最新 |',
+    lines=['## Expanded Training and Repeated Seeds: Latest Complete Epoch','',
+           'Each row uses complete training-audit/validation records from the same epoch. In-progress evaluation is not scored. Initial→latest holds budget/position/seed fixed.',
+           'Training audit is a fixed subset, not the mean of all training batches. Stable generalization requires planned epochs, repeated seeds, and independent confirmation. Current selection emphasizes total loss/VQA while retaining strict component-KL criteria as diagnostics. The adaptive change follows inspection of tuning results; independent-confirmation requirements are not relaxed.','',
+           '| Insertion / retention / seed | global batch / LR | Complete epoch | Update step | Training score: initial → latest | Development score: initial → latest | Training total: initial → latest | Development total: initial → latest | Development KL: initial → latest |',
            '|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for r in selected:
         stages=r['stages'];cfg=r['config']
@@ -119,12 +119,12 @@ def expanded_overview(results):
         lines.append(f"| {cfg['insertion']} / {cfg['ratio']:.0%} / {cfg['seed']} | {cfg['batch_size']} / {cfg['lr']:.3g} | {epoch}/{cfg['epochs']} | {r['updates']}/{r['planned_updates']} | "
                      +' | '.join(transition(c,f,d) for c,f,d in [('train_audit','score',2),('validation','score',2),
                          ('train_audit','total',4),('validation','total',4),('validation','prediction',4)])+' |')
-    lines+=['','验证集未压缩 teacher 为 '+', '.join(f"{v:.2f}" for v in sorted({r['stages']['validation/initial']['teacher']
-                 for r in selected if r['stages'].get('validation/initial',{}).get('complete')}))+' 分；混合任务宏平均不是官方统一榜单指标。','']
+    lines+=['','Uncompressed validation teacher:  '+', '.join(f"{v:.2f}" for v in sorted({r['stages']['validation/initial']['teacher']
+                 for r in selected if r['stages'].get('validation/initial',{}).get('complete')}))+'  points; mixed-task macro is not a unified official leaderboard.','']
     for r in selected:
         rel=f'../artifacts/meta_compress_strict/runs/{r["name"]}'
-        lines.append(f'- `{r["name"]}`：[曲线 PDF]({rel}/curves.pdf) · [逐步日志]({rel}/training.jsonl)')
-    lines+=['','以下保留所有初始化筛查、负结果、分项 loss 和同预算固定对照。','']
+        lines.append(f'- `{r["name"]}`: [Curve PDF]({rel}/curves.pdf) · [Stepwise log]({rel}/training.jsonl)')
+    lines+=['','Retain all initialization screens, negative results, component losses, and same-budget controls below.','']
     return lines
 
 def confirmed_report(results, state):
@@ -152,11 +152,11 @@ def confirmed_report(results, state):
     if paired_answers:
         with (BASE/'confirmation_answers.csv').open('w') as f:
             writer=csv.DictWriter(f,fieldnames=list(paired_answers[0]));writer.writeheader();writer.writerows(paired_answers)
-    lines=['# MetaCompress：双 seed 独立确认与扩大训练进度','',
-        '本页由真实逐题记录和确认结果生成。确认使用未参与选择的 224 张图、420 道题；固定 epoch8，不根据确认分数重选 checkpoint。',
-        '七任务原生分数按任务宏平均，百分制；DeepForm/KLC 为字段 exact，并非官方整文档 F1。','',
-        '## 已完成的独立确认','',
-        '| seed | QA | 初始 VQA | 训练后 VQA | teacher | 增益与图像聚类 95% CI | total 初始→训练后 | KL 初始→训练后 | 确认判据 |',
+    lines=['# MetaCompress: Two-Seed Confirmation and Expanded-Training Progress','',
+        'Built from actual per-question/confirmation records. Confirmation has 224 images/420 QA unused for selection; epoch 8 is fixed without confirmation-based checkpoint reselection.',
+        'Seven native task scores are equally macro-averaged as percentages. DeepForm/KLC are field exact match, not official document-level F1.','',
+        '## Completed Independent Confirmation','',
+        '| seed | QA | Initial VQA | Trained VQA | teacher | Gain and image-cluster 95% CI | Total: initial → trained | KL: initial → trained | Confirmation criterion |',
         '|---|---:|---:|---:|---:|---|---|---|---|']
     for record in records:
         r=indexed.get(record['candidate'])
@@ -164,11 +164,11 @@ def confirmed_report(results, state):
         a=r['stages'].get('confirm/initial',{});b=record['confirmation']
         if not (a.get('complete') and b.get('complete')):continue
         ci=b['paired']['cluster_bootstrap_95ci_points']
-        lines.append(f"| {r['config']['seed']} | {b['n']} | {a['score']:.2f} | {b['score']:.2f} | {b['teacher']:.2f} | {b['gain_points']:+.2f} [{ci[0]:+.2f}, {ci[1]:+.2f}] | {a['total']:.4f}→{b['total']:.4f} | {a['prediction']:.4f}→{b['prediction']:.4f} | {'通过' if record['pass'] else '未通过'} |")
-    lines+=['','上述两组来自同一训练方案：官方 MonkeyOCRv2-B-Und 全部冻结；原 MetaCompress 生成器与 KL + 行熵 + 最大列质量三项原始总 loss，权重均为 1；post-merger，保留 75% token；dense-position 参数初始化 strength=512；AdamW LR=3e-6、global batch=32、8 epochs、8 NPU ranks。',
-        '训练 672 图/1,801 QA；固定训练审计 28 图/78 QA；调参验证 112 图/213 QA；确认 224 图/420 QA，按图像互斥。确认的 teacher/student 各自自由生成，cap=64；gold 只用于评分。',
-        '', '## 训练与调参验证','',
-        '| seed | 集合 | 初始 VQA→epoch8 | 初始 total→epoch8 | 总 loss/VQA 主判据 | 原 KL 严格诊断 |',
+        lines.append(f"| {r['config']['seed']} | {b['n']} | {a['score']:.2f} | {b['score']:.2f} | {b['teacher']:.2f} | {b['gain_points']:+.2f} [{ci[0]:+.2f}, {ci[1]:+.2f}] | {a['total']:.4f}→{b['total']:.4f} | {a['prediction']:.4f}→{b['prediction']:.4f} | {'Passed' if record['pass'] else 'Failed'} |")
+    lines+=['','Both groups use the same training method: the complete official MonkeyOCRv2-B-Und is frozen; the original MetaCompress generator uses KL + row entropy + maximum column mass, all weighted 1. Compression is post-merger at 75% retention; dense-position initialization strength=512; AdamW LR=3e-6, global batch=32, 8 epochs, and 8 NPU ranks.',
+        'Image-disjoint splits: training 672 images/1,801 QA, fixed training audit 28/78, tuning 112/213, confirmation 224/420. Teacher/student independently generate at cap=64; gold is scoring-only.',
+        '', '## Training and Development Evaluation','',
+        '| seed | Cohort | VQA: initial → epoch 8 | Total: initial → epoch 8 | Primary total-loss / VQA criterion | Original strict KL diagnostic |',
         '|---|---|---|---|---|---|']
     for record in records:
         r=indexed.get(record['candidate'])
@@ -176,12 +176,12 @@ def confirmed_report(results, state):
         for cohort in ['train_audit','validation']:
             a=r['stages'].get(cohort+'/initial',{});b=r['stages'].get(cohort+'/epoch8',{})
             if not (a.get('complete') and b.get('complete')):continue
-            lines.append(f"| {r['config']['seed']} | {cohort} | {a['score']:.2f}→{b['score']:.2f} | {a['total']:.4f}→{b['total']:.4f} | {'通过' if r['requested_stability']['pass'] else '未通过'} | {'通过' if r['stability']['pass'] else '未通过'} |")
-    lines+=['','主判据属于查看调参结果后的自适应修改：末三轮 KL 允许最多 2% 末端反弹；原判据要求无反弹。两种判据并列保留，不能宣称原严格协议通过。总 loss/VQA 的条件和独立确认的条件没有放宽。详见 [修订原始记录](../artifacts/meta_compress_strict/primary_endpoint_addendum.json)。',
-        '这里的“稳定改善”是已记录的末三轮判据及独立确认改善，不表示每一个 epoch、每个任务或每个问题均单调变好。训练审计是固定训练子集，不能代替全部训练数据的生成分数。',
-        '', '同预算 post-merger mean pooling 在调参验证集为 **50.374**；两 seed 的 epoch8 为 **46.61 / 49.97**。当前未证明优于 mean pooling，也未达到无压缩 teacher。batch32 同时改变梯度平均和累计更新量；匹配累计 LR 的 batch8 对照被跳过，不能唯一归因于梯度噪声降低。',
-        '', '## 各任务独立确认','',
-        '| seed | 任务 | 初始 | epoch8 | teacher | 增益 |','|---|---|---:|---:|---:|---:|']
+            lines.append(f"| {r['config']['seed']} | {cohort} | {a['score']:.2f}→{b['score']:.2f} | {a['total']:.4f}→{b['total']:.4f} | {'Passed' if r['requested_stability']['pass'] else 'Failed'} | {'Passed' if r['stability']['pass'] else 'Failed'} |")
+    lines+=['','After viewing tuning results, the adaptive primary criterion permits ≤2% terminal KL rebound over the last three epochs; the original permits none. Both are retained, without claiming the original strict criterion passed. Total-loss/VQA and independent-confirmation requirements are unchanged. See [original revision record](../artifacts/meta_compress_strict/primary_endpoint_addendum.json). ',
+        '“Stable improvement” means the recorded final-three-epoch rule plus independent confirmation, not monotonic gains in every epoch/task/question. Fixed training-audit scores do not replace all-training generation.',
+        '', 'Same-budget post-merger mean pooling scores **50.374** on the tuning set; the two epoch-8 seeds score **46.61 / 49.97**. Neither superiority to mean pooling nor recovery to the uncompressed teacher is established. Batch=32 changes gradient averaging and accumulated update magnitude together. The batch=8 control with matched accumulated LR was skipped, so reduced gradient noise cannot be identified as the sole cause.',
+        '', '## Per-Task Independent Confirmation','',
+        '| seed | Task | Initial | epoch8 | teacher | Gain |','|---|---|---:|---:|---:|---:|']
     for record in records:
         r=indexed.get(record['candidate'])
         if not r:continue
@@ -191,9 +191,9 @@ def confirmed_report(results, state):
             initial=100*a['tasks'][task]['student_score'];final=100*v['student_score']
             lines.append(f"| {r['config']['seed']} | {task} | {initial:.2f} | {final:.2f} | {100*v['teacher_score']:.2f} | {final-initial:+.2f} |")
     if (BASE/'confirmation_per_task_uncertainty.json').exists():
-        lines+=['','[按任务分层、按图像聚类的各任务增益区间](../artifacts/meta_compress_strict/confirmation_per_task_uncertainty.json)：ChartQA、DeepForm、KLC 两 seed 的名义 95% 区间下界均大于 0；DocVQA、InfoVQA、DT-VQA 两 seed 区间均跨 0。当前独立证据支持宏平均改善，尚不足以确认后面三个任务分别改善。各任务区间为单项区间，没有进行多重比较校正。']
-    lines+=['','## 全部训练 batch 的逐 epoch loss','',
-        '下面的 training total 是该 epoch 全部 global batch 的均值，包含末 batch 既定循环补齐，按训练样本权重；validation total 是固定验证集按任务宏平均。两者聚合权重不同，分别观察各自时间趋势。两 seed 的 training total 均逐 epoch 下降；验证 loss 总体下降后进入平台，VQA 有中途波动，不能描述为八轮严格单调上升。','',
+        lines+=['','[Task-stratified, image-clustered per-task gain intervals](../artifacts/meta_compress_strict/confirmation_per_task_uncertainty.json) : for ChartQA, DeepForm, and KLC, both seeds\' nominal 95% CI lower bounds exceed 0; for DocVQA, InfoVQA, and DT-VQA, both intervals cross 0. Independent evidence supports macro-average improvement but not separate confirmed gains on the latter three tasks. Per-task intervals are unadjusted for multiple comparisons.']
+    lines+=['','## Per-Epoch Loss Across All Training Batches','',
+        'Training total averages all global batches in an epoch, including the prespecified cyclic padding of its final batch, weighted by training examples. Validation total is a task-macro average on the fixed development set; aggregation weights differ, so inspect their trends separately. Training total decreases each epoch for both seeds. Validation loss decreases and then plateaus, while VQA fluctuates; eight strictly monotonic score increases are not observed.','',
         '| seed | epoch | training total | validation total | validation VQA |',
         '|---|---:|---:|---:|---:|']
     for record in records:
@@ -206,33 +206,33 @@ def confirmed_report(results, state):
             v=r['stages'].get(f'validation/epoch{epoch}',{})
             if len(values)==expected and v.get('complete'):
                 lines.append(f"| {r['config']['seed']} | {epoch} | {mean(values):.5f} | {v['total']:.5f} | {v['score']:.3f} |")
-    lines+=['','## 后续覆盖扩大实验的真实状态','',f"控制器阶段：`{state.get('phase')}`，记录时间 `{state.get('updated_at')}`。",
-        '扩大数据为 12,661 图/19,999 QA、8 个完整 epoch。初始化重训，LR 按调度 LR 总量缩放为约 2.7408e-7；这与双 seed 确认训练的覆盖和优化过程不同，不能沿用其成功结论。']
+    lines+=['','## Actual Status of Subsequent Coverage Expansion','',f"Controller stage: `{state.get('phase')}`, recorded at  `{state.get('updated_at')}`. ",
+        'Expanded data: 12,661 images / 19,999 QA, 8 full epochs. Train from initialization with LR scaled by cumulative scheduled LR to about 2.7408e-7. Coverage/optimization differ from two-seed confirmation, whose success cannot be inherited.']
     full=indexed.get('full_verified_family')
     if full:
         epochs=[e for e in range(1,9) if all(full['stages'].get(f'{c}/epoch{e}',{}).get('complete') for c in ['train_audit','validation'])]
-        lines+=['',f"实际更新 {full['updates']}/{full['planned_updates']}；完整生成评测 {max(epochs,default=0)}/8 epochs；训练完成标志：{full['complete']}。"]
+        lines+=['',f"Actual updates {full['updates']}/{full['planned_updates']}; complete generation evaluation  {max(epochs,default=0)}/8 epochs; training completion marker: {full['complete']}. "]
         if full['complete']:
-            lines+=['',f"扩大训练总 loss/VQA 主判据：{'通过' if full['requested_stability']['pass'] else '未通过：'+'；'.join(full['requested_stability']['reasons'])}。"]
-    else:lines+=['','尚无扩大训练 manifest，不能视为已经训练完成。']
+            lines+=['',f"Expanded-training primary total-loss/VQA criterion: {'Passed' if full['requested_stability']['pass'] else 'Failed:'+'; '.join(full['requested_stability']['reasons'])}. "]
+    else:lines+=['','No expanded-training manifest; training completion is not established.']
     final=ROOT/'docs/METACOMPRESS_STRICT_FINAL_RESULTS.md'
-    if final.exists():lines+=['','[实际完成的全量 benchmark 结果](METACOMPRESS_STRICT_FINAL_RESULTS.md)。']
-    else:lines+=['','23,565 QA 的 benchmark 尚无最终报告，不能报告全量分数。']
-    lines+=['','## 明确入口与产物','',
+    if final.exists():lines+=['','[Completed full-benchmark results](METACOMPRESS_STRICT_FINAL_RESULTS.md). ']
+    else:lines+=['','The 23,565-QA benchmark has no final report yet; full scores cannot be reported.']
+    lines+=['','## Entry Points and Outputs','',
         '```bash','bash scripts/run_meta_compress_strict.sh status','bash scripts/run_meta_compress_strict.sh report',
-        '# 新训练（先检查 status，避免与控制器重复提交）',
+        '# Fresh training: inspect status first to avoid duplicate controller submissions.',
         'bash scripts/run_meta_compress_strict.sh train artifacts/meta_compress_strict/configs/early_expanded3_screen37_batch32.json',
-        '# 独立图像问答；将 IMAGE 和 QUESTION 替换为实际输入',
+        '# Independent image QA: replace IMAGE and QUESTION with actual inputs.',
         'bash scripts/run_meta_compress_strict.sh predict \\',
         '  --checkpoint artifacts/meta_compress_strict/runs/early_expanded3_screen37_batch32/epoch8.pt \\',
         '  --image IMAGE --question QUESTION --teacher --save-json artifacts/meta_compress_strict/prediction.json','```','',
-        '[完整方案](METACOMPRESS_STRICT_OPTIMIZATION.md) · [实时逐轮结果](METACOMPRESS_STRICT_RESULTS.md) · [确认集初始/训练后/teacher/gold 逐题对比](../artifacts/meta_compress_strict/confirmation_answers.csv) · [全部逐题记录](../artifacts/meta_compress_strict/answers.csv)',
-        '', '确认对比 CSV 中逐题 score 为 0～1；正文宏平均为百分制。每行保留一次确定性生成结果，没有按随机压缩重复平均。']
+        '[Full design](METACOMPRESS_STRICT_OPTIMIZATION.md) · [Live per-epoch results](METACOMPRESS_STRICT_RESULTS.md) · [Confirmation initial/trained/teacher/gold per-question comparison](../artifacts/meta_compress_strict/confirmation_answers.csv) · [All per-question records](../artifacts/meta_compress_strict/answers.csv)',
+        '', 'Confirmation CSV scores are in [0,1]; report macros as percentages. Every row is one deterministic generation, without random-compression averaging.']
     for record in records:
         name=record['candidate'];rel=f'../artifacts/meta_compress_strict/runs/{name}'
-        lines+=['',f'`{name}`：[曲线 PDF]({rel}/curves.pdf) · [训练日志]({rel}/training.jsonl) · [配置](../artifacts/meta_compress_strict/configs/{name}.json) · [独立确认机器记录](../artifacts/meta_compress_strict/confirmation.{name}.json)。']
+        lines+=['',f'`{name}`: [Curve PDF]({rel}/curves.pdf) · [Training log]({rel}/training.jsonl) · [Configuration](../artifacts/meta_compress_strict/configs/{name}.json) · [Independent confirmation records](../artifacts/meta_compress_strict/confirmation.{name}.json). ']
     (ROOT/'docs/METACOMPRESS_STRICT_CONFIRMED_RESULTS.md').write_text('\n'.join(lines)+'\n')
-    return ['## 独立确认','', '[双 seed 独立确认、限制和后续训练状态](METACOMPRESS_STRICT_CONFIRMED_RESULTS.md)。','']
+    return ['## Independent Confirmation','', '[Two-seed independent confirmation, limitations, and subsequent training status](METACOMPRESS_STRICT_CONFIRMED_RESULTS.md). ','']
 
 def main():
     results=[];allrows=[]
@@ -241,50 +241,50 @@ def main():
         result,grouped=collect(run);results.append(result)
         for rows in grouped.values():allrows.extend({'run':run.name,**r} for r in rows)
     save(BASE/'summary.json',results)
-    lines=['# 原结构、完整三项 loss：训练与验证实测','',
-        '只将完整评测阶段计为结果；分数为七任务各自原生指标的百分制宏平均。DeepForm/KLC 为字段 exact。',
-        '训练审计集固定不变，独立生成答案；训练 batch loss 和固定审计 loss 分开记录。','',
-        '主判据与原附加 KL 严格诊断分开列出，均非独立确认结果。主判据允许最后三轮 KL 末端≤起点的 102%，其他总 loss、VQA、KL 整体降幅与质量门槛全部保留。该修订发生在查看调参结果后、独立确认前。','',
-        '| run | 完成 | updates | 总 loss/VQA 主判据 | 原单 seed 趋势诊断 | 原趋势+质量保留诊断 |','|---|---|---:|---|---|---|']
-    for r in results:lines.append(f"| {r['name']} | {'提前停止，未完成原计划' if r.get('early_stop') else r['complete']} | {r['updates']}/{r['planned_updates']} | {r['requested_stability']['pass']} | {r['stability']['trend_pass']} | {r['stability']['pass']} |")
-    lines+=['','| run | 集合/阶段 | QA | score | teacher | KL | H | collapse | total | Δscore |',
+    lines=['# Original Architecture and Three-Term Loss: Measured Training and Validation','',
+        'Report only completed evaluation stages. Scores are seven-task native-metric percentage macros; DeepForm/KLC use field exact match.',
+        'Training audit is fixed and independently generated; batch loss and fixed-audit loss are logged separately.','',
+        'Primary criteria and original strict additional-KL diagnostics are separate; neither is independent confirmation. Primary criteria allow final-three-epoch KL ending ≤102% of its start; total-loss/VQA/overall-KL/quality requirements remain. Revision follows tuning inspection and precedes confirmation.','',
+        '| run | Completed | updates | Primary total-loss / VQA criterion | Original single-seed trend diagnosis | Original trend + quality-retention diagnosis |','|---|---|---:|---|---|---|']
+    for r in results:lines.append(f"| {r['name']} | {'Stopped early; planned training incomplete' if r.get('early_stop') else r['complete']} | {r['updates']}/{r['planned_updates']} | {r['requested_stability']['pass']} | {r['stability']['trend_pass']} | {r['stability']['pass']} |")
+    lines+=['','| run | Cohort / stage | QA | score | teacher | KL | H | collapse | total | Δscore |',
             '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for r in results:
         for key,s in sorted(r['stages'].items()):
             if not s['complete']:
-                lines.append(f"| {r['name']} | {key}（未完成） | {s['n']}/{s['expected']} | — | — | — | — | — | — | — |")
+                lines.append(f"| {r['name']} | {key}(incomplete) | {s['n']}/{s['expected']} | — | — | — | — | — | — | — |")
             else:lines.append(f"| {r['name']} | {key} | {s['n']} | {s['score']:.3f} | {s['teacher']:.3f} | {s['prediction']:.5f} | {s['entropy']:.3f} | {s['collapse']:.3f} | {s['total']:.4f} | {s.get('gain_points',0):+.3f} |")
-    lines+=['','## 同预算固定对照（非生成器候选）','',
-            '| 位置/对照 | QA | score | teacher | KL | total |','|---|---:|---:|---:|---:|---:|']
+    lines+=['','## Same-Budget Fixed Controls (Not Learned-Generator Candidates)','',
+            '| Insertion point / control | QA | score | teacher | KL | total |','|---|---:|---:|---:|---:|---:|']
     expected={r['id'] for r in read(BASE/'validation.jsonl')}
     for directory in sorted((BASE/'baselines').glob('*')):
         rows=[r for f in directory.glob('eval.validation.fixed.rank*.jsonl') for r in read(f)]
         allrows.extend({'run':'control:'+directory.name,**r} for r in rows)
         s=summarize(rows,expected)
         if s['complete']:lines.append(f"| {directory.name} | {s['n']} | {s['score']:.3f} | {s['teacher']:.3f} | {s['prediction']:.5f} | {s['total']:.4f} |")
-        else:lines.append(f"| {directory.name}（未完成） | {s['n']}/{s['expected']} | — | — | — | — |")
+        else:lines.append(f"| {directory.name}(incomplete) | {s['n']}/{s['expected']} | — | — | — | — |")
     text='\n'.join(lines)+'\n'
     (BASE/'RESULTS.md').write_text(text)
     state=json.loads((BASE/'controller.json').read_text()) if (BASE/'controller.json').exists() else {}
-    doc=['# 严格 MetaCompress 优化：实时结果','',
-         f'控制器最近记录阶段：`{state.get("phase","initializing")}`；更新：`{state.get("updated_at","pending")}`。',
-         '本文件读取真实产物自动生成；未完成阶段不作为最终结果，门槛失败不等于训练仍在运行。',
-         '[方案和明确入口](METACOMPRESS_STRICT_OPTIMIZATION.md) · [调度状态](../artifacts/meta_compress_strict/RUNNING_STATUS.md) · [逐题作答](../artifacts/meta_compress_strict/answers.csv)','',*confirmed_report(results,state),*expanded_overview(results),text,
-         '## 曲线与未达标原因','']
+    doc=['# Strict MetaCompress Optimization: Live Results','',
+         f'Last recorded controller stage: `{state.get("phase","initializing")}`; updated: `{state.get("updated_at","pending")}`. ',
+         'Automatically generated from actual outputs. Incomplete stages are not final results; failed eligibility does not mean still running.',
+         '[Design and entry point](METACOMPRESS_STRICT_OPTIMIZATION.md) · [Scheduling status](../artifacts/meta_compress_strict/RUNNING_STATUS.md) · [Per-question answers](../artifacts/meta_compress_strict/answers.csv)','',*confirmed_report(results,state),*expanded_overview(results),text,
+         '## Curves and Reasons for Missing the Targets','']
     for r in results:
         rel=f'../artifacts/meta_compress_strict/runs/{r["name"]}'
-        doc+=['',f'### {r["name"]}','',f'[训练/验证曲线 PDF]({rel}/curves.pdf) · [PNG]({rel}/curves.png)','',
-              '总 loss/VQA 主判据：'+('通过（仍需重复 seed 与独立确认）' if r['requested_stability']['pass'] else '尚未通过：'+'；'.join(r['requested_stability']['reasons'])),
-              '', '原额外 KL 严格诊断：'+('通过' if r['stability']['pass'] else '未通过：'+'；'.join(r['stability']['reasons']))]
+        doc+=['',f'### {r["name"]}','',f'[Training/validation curves PDF]({rel}/curves.pdf) · [PNG]({rel}/curves.png)','',
+              'Primary total-loss/VQA criterion: '+('Passed (repeated seeds and independent confirmation still required)' if r['requested_stability']['pass'] else 'Not yet passed:'+'; '.join(r['requested_stability']['reasons'])),
+              '', 'Original strict additional-KL diagnostic: '+('Passed' if r['stability']['pass'] else 'Failed:'+'; '.join(r['stability']['reasons']))]
         cfg=r['config']
-        doc+=['',f"位置 `{cfg['insertion']}`；token 保留率 {cfg['ratio']:.0%}；初值 `{cfg['initialization']}`；optimizer `{cfg['optimizer']}`；LR `{cfg['lr']}`；clip `{cfg['clip']}`；seed `{cfg['seed']}`。"]
+        doc+=['',f"Insertion `{cfg['insertion']}`; token retention  {cfg['ratio']:.0%}; initial `{cfg['initialization']}`; optimizer `{cfg['optimizer']}`; LR `{cfg['lr']}`; clip `{cfg['clip']}`; seed `{cfg['seed']}`. "]
         epochs=[(int(k.split('epoch')[1]),v) for k,v in r['stages'].items()
                 if k.startswith('validation/epoch') and v.get('complete')]
         initial=r['stages'].get('validation/initial',{})
         if epochs and initial.get('complete'):
             epoch,last=max(epochs,key=lambda v:v[0])
-            doc+=['',f'最新完整验证阶段 epoch {epoch}，不是追选的最高分 epoch：','',
-                  '| 任务 | 初始 | 最新 | teacher | Δscore | KL 初始→最新 |',
+            doc+=['',f'Latest complete validation epoch {epoch}, not a retrospectively selected maximum-score epoch: ','',
+                  '| Task | Initial | Latest | teacher | Δscore | KL: initial → latest |',
                   '|---|---:|---:|---:|---:|---:|']
             for task,v in sorted(last['tasks'].items()):
                 a=initial['tasks'][task]

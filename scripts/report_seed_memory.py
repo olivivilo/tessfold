@@ -137,48 +137,48 @@ def main():
  stats=final_statistics(reg,results) if len(results)==24 else None
  memory=memory_statistics(reg)
  fmt=lambda x,n=2:'—' if x is None else f'{x:.{n}f}'
- doc=['# 列划分与问题条件空间树：四预算共同三seed及分阶段设备内存','',f'更新UTC：{now()}；已审计正式模型{len(results)}/24，新完整训练14组，复用已完成10组。','',
- '**入口**：`.venv/bin/python -m scripts.column_tree_seed_memory_suite status`；中断`resume`；固定登记核对`verify`；最终`.venv/bin/python -m scripts.report_seed_memory --require-complete`。','',
- '## 固定设计与参数','',
- '10%/25%/50%/75%均为token保留率（约10×/4×/2×/1.33× token压缩，不是加速比）。统一merger前，官方MonkeyOCRv2-B-Und encoder/merger/Qwen3-1.7B全冻结，只训练P生成器。两种方法均用20261105、20261106、20261107共同种子。','',
- '旧两方法四预算的seed20261105共8组，以及补充实验T25的seed20261106/07共2组复用；其余14组从头训练，不挑seed。原20,000QA/16,731图、验证56QA、历史审计14QA、正式23,565QA/6,494图，固定文件/顺序。AdamW LR3e-4、wd0、clip1、batch32、8NPU每rank累积4题、4epochs/2500更新；250步warmup、cosine到10%峰值；KL-only共同teacher生成前缀T=1，训练/验证cap64、正式greedy cap256、固定epoch4。','',
- '新正式评测仅trained变体23565条/模型，不重复计算旧六种控制；旧initial/control逐题结果保留，不改变比较的trained评分。八任务等权宏平均，DeepForm/KLC为字段exact，非统一官方榜单。正式基准已被查看，本轮是固定重复扩展。','',
- '## 逐seed正式结果','', '|保留率|方法|seed|来源|训练步数|八任务宏分|DocVQA|正式审计|','|---|---|---:|---|---:|---:|---:|---|']
+ doc=['# Column and Question-Conditioned Spatial Trees: Four Budgets, Three Shared Seeds, and Stagewise Device Memory','',f'Updated (UTC): {now()}; audited formal models {len(results)}/24, with 14 fresh full runs and 10 completed runs reused.','',
+ '**Entry point**: `.venv/bin/python -m scripts.column_tree_seed_memory_suite status`; interrupt `resume`; fixed-registration check `verify`; final `.venv/bin/python -m scripts.report_seed_memory --require-complete`. ','',
+ '## Fixed Design and Hyperparameters','',
+ '10%/25%/50%/75% are token retention fractions (approximately 10×/4×/2×/1.33× token compression, not speedups). Compression is uniformly before the merger. The official MonkeyOCRv2-B-Und encoder/merger/Qwen3-1.7B are frozen; only P generators are trained. Both methods use the shared seeds 20261105, 20261106, and 20261107.','',
+ 'Reuse eight runs at seed 20261105 across two methods/four budgets, plus T25 seeds 20261106/07 from the supplement; train the remaining 14 afresh without seed selection. Fixed files/order: 20,000 training QA / 16,731 images, 56 validation QA, 14 historical audit QA, 23,565 formal QA / 6,494 images. AdamW LR=3e-4, wd=0, clip=1, batch=32; 8 ranks accumulate 4 questions each; 4 epochs / 2,500 updates, 250-step warmup and cosine to 10% peak LR. KL-only at T=1 under shared teacher-generated prefixes; train/validation cap=64, formal greedy cap=256, fixed epoch 4.','',
+ 'New formal evaluation runs the trained variant only, 23,565 records/model, without repeating six earlier controls. Earlier initial/control outputs remain; trained scoring is unchanged. Eight tasks are equally weighted; DeepForm/KLC use field exact match, not a unified official leaderboard. The formal benchmark was already inspected, so this is a fixed repeated extension.','',
+ '## Formal Results by Seed','', '|Retention fraction|Method|seed|Source|Training steps|Eight-task macro|DocVQA|Formal audit|','|---|---|---:|---|---:|---:|---:|---|']
  for m in reg['models']:
   res=results.get(m['id'],{});pp=progress[m['id']]
-  doc.append(f'|{m["ratio"]:.0%}|{LABEL[m["kind"]]}|{m["seed"]}|{"复用完整实验" if m["reuse"] else "本轮新训练"}|{pp["steps"]}/2500|{fmt(res.get("macro"))}|{fmt(res.get("tasks",{}).get("DocVQA"))}|{"通过" if res else "待完成"}|')
- doc+=['','## 三seed聚合及配对比较','','均分与样本SD描述训练seed波动；图像聚类bootstrap描述给定这三个已训练模型的评测图像不确定性。每题先在各模型内独立评分，三seed均值仅用于重复训练的统计估计，不是对随机压缩试验跨种子平均后求loss相关性。未校正多重次比较，不能用三seed声称总体方差已精确估计。','']
+  doc.append(f'|{m["ratio"]:.0%}|{LABEL[m["kind"]]}|{m["seed"]}|{"Reuse completed experiment" if m["reuse"] else "Newly trained in this round"}|{pp["steps"]}/2500|{fmt(res.get("macro"))}|{fmt(res.get("tasks",{}).get("DocVQA"))}|{"Passed" if res else "Pending"}|')
+ doc+=['','## Three-Seed Aggregation and Paired Comparisons','','Means and sample SD describe training-seed variation; image-cluster bootstrap describes evaluation-image uncertainty conditional on these three trained models. Each model scores each question independently. Three-seed averaging estimates repeated-training statistics; it is not averaging random-compression downstream scores before loss-correlation analysis. Secondary comparisons are unadjusted, and three seeds do not precisely estimate population variance.','']
  if stats:
-  doc+=['|保留率|列均分±样本SD|树均分±样本SD|树−列均差|配对seed差SD|三seed均差的95%图像CI|','|---|---:|---:|---:|---:|---|']
+  doc+=['|Retention fraction|Column mean ± sample SD|Tree mean ± sample SD|Mean Tree−Column difference|SD of paired seed differences|95% image CI for the three-seed mean difference|','|---|---:|---:|---:|---:|---|']
   for ratio in RATIOS:
    s=stats['seeds'][str(ratio)];pair=stats['paired'][f'T-C_r{ratio:g}_three_seed_mean'];ci=pair['image_cluster_95ci_points']
    doc.append(f'|{ratio:.0%}|{s["C_mean"]:.4f}±{s["C_sample_sd"]:.4f}|{s["T_mean"]:.4f}±{s["T_sample_sd"]:.4f}|{s["gain_mean"]:+.4f}|{s["gain_sample_sd"]:.4f}|[{ci[0]:.4f},{ci[1]:.4f}]|')
- else:doc+=['尚未收齐24组，未提前用缺失seed填充或发布完整三seed结论。']
- doc+=['','## 分阶段内存测量定义与限制','',
- '独立内存诊断覆盖24个checkpoint及未压缩REF：原固定90QA（按原N三层各30），每组3轮，自然EOS/cap256与固定64两种生成模式；共13,500请求。batch1、权重常驻、不读视觉缓存、不跨题复用KV，一次只驻留一个生成器；10次预热/模型。','',
- '六个阶段顺序：processor；encoder（视觉trunk，原官方merger前结束）；native_merger（原全长merger，单列）；compression（生成P、PH、压缩特征的原官方merger及问题embedding）；Qwen prefill（原generate首次完整prompt forward）；generation（prefill后首token选择及后续解码至结束）。REF的compression近于空操作，仍单列。encoder后原全长X保留，以复现既有流水线，不悄悄加入释放优化。','',
- '每段边界同步并重置allocator峰值。峰值是torch.npu.max_memory_allocated/reserved；平均值是目标1ms CPU观察线程记录memory_allocated/reserved后，按实际时间间隔做梯形加权的采样估计，包括阶段中的CPU间隙，不能冒充精确kernel时间平均。保存原始npz轨迹、样本数/最大间隔，窄脉冲的平均估计有采样误差，但峰值独立来自allocator。','',
- '分别报告阶段起点/终点绝对占用、绝对峰值、相对起点的增量峰值、采样平均；汇总区分跨请求峰值的均值与最大值，以及请求平均值的均值与按阶段时长合并的均值。生成阶段实际KV存储字节单列，token减小不等于常驻权重或encoder峰值减小。设备allocated/reserved不是整卡其他进程或驱动总占用。测量含同步/线程开销，不拿其时延直接宣称加速。','',
- '真实技术检查先回归8种结构/预算的原生生成token，检查prefill实际视觉数与KV、已知64MiB分配平台的采样/峰值、fresh生成器实际UND反向与参数更新；通过后才提交完整训练。完整内存自然EOS还逐题回归对应正式checkpoint答案。','']
+ else:doc+=['Not all 24 runs are available; no missing-seed imputation or premature three-seed conclusions.']
+ doc+=['','## Stagewise Memory Definitions and Limitations','',
+ 'Independent memory diagnostics cover 24 checkpoints plus uncompressed REF: 90 fixed QA (30 per original-N stratum), 3 repetitions, natural EOS/cap=256 and fixed64, totaling 13,500 requests. Batch=1, resident weights, no visual-cache reads or cross-question KV, and one resident generator at a time; 10 warmup requests/model.','',
+ 'Six stages: processor; encoder (visual trunk ending before the official merger); native_merger (original full-length merger); compression (P generation, PH, the official merger on compressed features, and question embeddings); Qwen prefill (the first full-prompt forward in generate); generation (first-token selection after prefill and decoding to termination). REF\'s nearly empty compression stage is still reported. Original full-length X is retained after encoding to reproduce the existing pipeline without silently adding tensor-release optimization.','',
+ 'Synchronize and reset allocator peaks at each stage boundary. Peaks use torch.npu.max_memory_allocated/reserved. Means are sampling estimates: a CPU thread targets 1 ms intervals and trapezoidally time-weights actual memory_allocated/reserved samples, including CPU gaps within stages, not exact kernel-time averages. Save raw NPZ traces, sample counts, and maximum intervals. Narrow peaks can bias sampled means, while peak values independently come from the allocator.','',
+ 'Report absolute stage-start/end allocation, absolute peak, incremental peak above the start, and sampled mean. Distinguish mean/max request peaks and the mean of request averages from a duration-weighted aggregate. Actual generation-KV storage is separate; fewer tokens do not imply lower resident-weight or encoder peaks. Device allocated/reserved values exclude other processes and total driver usage. Synchronization/thread overhead is included; these durations alone do not establish speedup.','',
+ 'First regress native generation for 8 architecture/budget cases, visual-prefill/KV counts, known 64-MiB allocation sampling/peaks, and fresh-generator real-UND backprop/updates. Submit full training only after passing. Natural-EOS memory passes also match each formal checkpoint’s answers.','']
  if memory:
-  doc+=['内存13,500记录及轨迹SHA已审计，原生生成回归通过。详见[逐请求CSV](../artifacts/column_tree_seed_memory_20261113/memory/stage_memory_per_request.csv)和[各方法/预算/seed/模式/阶段汇总CSV](../artifacts/column_tree_seed_memory_20261113/memory/stage_memory_summary.csv)。','',
-   '|保留率|方法|阶段|请求峰值均值GiB|请求平均值均值GiB|请求峰值最大GiB|增量峰值均值GiB|','|---|---|---|---:|---:|---:|---:|']
+  doc+=['All 13,500 memory records/trace hashes are audited; native-generation regression passes. See [Per-request CSV](../artifacts/column_tree_seed_memory_20261113/memory/stage_memory_per_request.csv)and [Method/budget/seed/mode/stage summary CSV](../artifacts/column_tree_seed_memory_20261113/memory/stage_memory_summary.csv). ','',
+   '|Retention fraction|Method|Stage|Mean request peak (GiB)|Mean per-request average (GiB)|Maximum request peak (GiB)|Mean incremental peak (GiB)|','|---|---|---|---:|---:|---:|---:|']
   for ratio in RATIOS:
    for kind in KINDS:
     for phase in ['encoder','native_merger','compression','qwen_prefill','generation']:
      pp=[x for x in memory['summaries'] if x['kind']==kind and x['ratio']==ratio and x['phase']==phase and x['mode']=='natural_eos'];assert len(pp)==3
      doc.append(f'|{ratio:.0%}|{LABEL[kind]}|{phase}|{statistics.mean(x["peak_allocated_mean_gib"] for x in pp):.4f}|{statistics.mean(x["average_allocated_mean_gib"] for x in pp):.4f}|{max(x["peak_allocated_max_gib"] for x in pp):.4f}|{statistics.mean(x["incremental_peak_mean_gib"] for x in pp):.4f}|')
- else:doc+=['分阶段正式内存尚未完成，不用旧端到端峰值填入阶段表。']
- doc+=['','## 训练/验证loss与原始入口','']
+ else:doc+=['Formal stagewise memory is incomplete; old E2E peaks do not fill stage tables.']
+ doc+=['','## Training/Validation Loss and Original Entry Points','']
  for m in reg['models']:
   pp=progress[m['id']]
-  doc+=[f'### {m["id"]}','',f'[配置](../{m["config"]}) · [权重](../{m["checkpoint"]}) · [曲线](../artifacts/column_tree_seed_memory_20261113/plots/{m["id"]}.pdf) · [逐题结果目录](../{m["output"]}/benchmark/)。','',
-   '|epoch|已记录更新|全训练KL|验证KL|验证生成宏分|历史审计KL|','|---|---:|---:|---:|---:|---:|']
+  doc+=[f'### {m["id"]}','',f'[Configuration](../{m["config"]}) · [Weights](../{m["checkpoint"]}) · [Curves](../artifacts/column_tree_seed_memory_20261113/plots/{m["id"]}.pdf) · [Per-question results](../{m["output"]}/benchmark/). ','',
+   '|epoch|Recorded updates|Full-training KL|Development KL|Development generation macro|Historical audit KL|','|---|---:|---:|---:|---:|---:|']
   for e in pp['epochs']:doc.append(f'|{e["epoch"]}|{e["updates"]}|{fmt(e["training_kl"],5)}|{fmt(e["validation_kl"],5)}|{fmt(e["validation_score"])}|{fmt(e["audit_kl"],5)}|')
- doc+=['','## 调度与恢复','',
- '独立CPU控制器持有文件锁，最多2个8NPU阶段同时排队/运行；保留原数据/源码/配置签名。每阶段最多3次基础设施恢复，训练沿用25步保存的optimizer/latest；不足完成标志不报告成功。超过恢复次数留attention_required，不更改科学协议。旧实验权重和迁移包不覆盖。','',
- f'当前阶段状态：{dict(collections.Counter(s["status"] for s in state.get("stages",{}).values()))}。',
- '[不可变登记](../artifacts/column_tree_seed_memory_20261113/registration.json) · [实时状态](../artifacts/column_tree_seed_memory_20261113/state.json) · [审计](../artifacts/column_tree_seed_memory_20261113/audits/)。']
+ doc+=['','## Scheduling and Recovery','',
+ 'A separate CPU controller holds a file lock and permits at most two 8-NPU stages queued/running concurrently. Data/source/configuration signatures remain fixed. Each stage allows up to 3 infrastructure recoveries using optimizer/latest saved every 25 updates; no success is reported without a completion marker. Exhaustion leaves attention_required without changing the protocol. Earlier weights and migration archives are not overwritten.','',
+ f'Current stage status: {dict(collections.Counter(s["status"] for s in state.get("stages",{}).values()))}. ',
+ '[Immutable registration](../artifacts/column_tree_seed_memory_20261113/registration.json) · [Live status](../artifacts/column_tree_seed_memory_20261113/state.json) · [Audit](../artifacts/column_tree_seed_memory_20261113/audits/). ']
  tmp=REPORT.with_suffix('.tmp');tmp.write_text('\n'.join(doc)+'\n');tmp.replace(REPORT)
  save(BASE/'merged_results.json',dict(updated=now(),completed_models=len(results),results=results,progress=progress,score_statistics_ready=stats is not None,memory_ready=memory is not None))
  if a.require_complete:assert len(results)==24 and stats is not None and memory is not None

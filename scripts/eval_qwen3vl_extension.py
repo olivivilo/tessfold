@@ -32,22 +32,22 @@ def report():
         scope='56 fixed development questions (7 tasks x8), native Qwen visual+language model; exploratory, not the23565QA benchmark and not an aligned UND transplant.',
         download_manifest_sha256=sha(BASE/'download_complete.json'))
     save(BASE/'complete.json',result)
-    doc=['# 新版约7B扩展：Qwen3-VL-8B原生推理验证','',f'更新时间UTC：{now()}。','',
-         '**入口**：`sbatch scripts/slurm_qwen3vl_extension.sh`；报告重建：`.venv/bin/python -m scripts.report_qwen3vl_extension`。','',
-         '## 实际做了什么','',
-         '将原建议的Qwen2.5-VL-7B扩展候选改为更新、规模相近且当前Transformers支持的官方Qwen3-VL-8B-Instruct。下载固定revision，LFS权重逐文件核对SHA256，在Ascend上加载完整原生VLM并冻结全部参数。未训练、未使用adapter、未接入旧压缩器。','',
-         f'模型revision：`{REVISION}`。它使用自己的视觉编码器和已训练视觉语言对齐；**不是把MonkeyOCRv2的encoder接到新版LLM上，也不是本轮UND零重训等价实验的替代结果**。','',
-         '## 数据与配置','',
-         '复用`artifacts/compression_lab_v2/validation.jsonl`的固定56题：7个任务各8题，不包含OCRBench。仅为新环境原生推理的探索性验证；不得与23565题正式评测的均分直接比较。每题独立图文对话，greedy、use_cache=True、max_new_tokens=64、max_pixels=1003520。使用官方processor、16像素patch的qwen_vl_utils，保留原生MRoPE和DeepStack。不同主干的实际图像缩放、视觉token数不同。','',
-         '对DocVQA/InfoVQA使用原ANLS，DT-VQA使用AccANLS，ChartQA使用relaxed accuracy，WTQ使用官方denotation，KLC/DeepForm使用DUE corpus F1。小样本分数不能证明新主干上的压缩器有效。','',
-         '## 实际结果','',
-         '|任务|题数|指标|分数（%）|','|---|---:|---|---:|']
+    doc=['# Newer ~7B-Class Extension: Native Qwen3-VL-8B Inference Validation','',f'Updated (UTC):{now()}. ','',
+         '**Entry point**: `sbatch scripts/slurm_qwen3vl_extension.sh`; rebuild report: `.venv/bin/python -m scripts.report_qwen3vl_extension`. ','',
+         '## Work Performed','',
+         'Replace the proposed Qwen2.5-VL-7B extension with the newer, similarly sized official Qwen3-VL-8B-Instruct supported by the current Transformers version. Download a fixed revision and verify each LFS weight\'s SHA-256. Load the full native VLM on Ascend with all parameters frozen, without training, adapters, or the old compressor.','',
+         f'Model revision: `{REVISION}`. It uses its own visual encoder and learned alignment; **it does not attach the MonkeyOCRv2 encoder to a newer LLM, nor replace this round’s no-retraining UND equivalence results**.','',
+         '## Data and Configuration','',
+         'Reuse`artifacts/compression_lab_v2/validation.jsonl` \'s fixed 56 questions: 8 per task across 7 tasks, excluding OCRBench. This explores native inference in a new environment and is not directly comparable to the 23,565-question formal mean. Each question is an independent image/text dialogue: greedy, use_cache=True, max_new_tokens=64, max_pixels=1003520, official processor, and qwen_vl_utils with 16-pixel patches, retaining MRoPE/DeepStack. Actual image resizing and token counts differ between backbones.','',
+         'Use original ANLS for DocVQA/InfoVQA, AccANLS for DT-VQA, relaxed accuracy for ChartQA, official denotation for WTQ, and DUE corpus F1 for KLC/DeepForm. Small-sample scores do not establish effective compression on the new backbone.','',
+         '## Measured Results','',
+         '|Task|Questions|Metric|Score (%)|','|---|---:|---|---:|']
     for task,m in metrics.items():doc.append(f'|{task}|{m["questions"]}|{m["metric"]}|{m["score_percent"]:.4f}|')
-    doc += ['',f'七任务探索性均分：**{result["macro_score_percent"]:.4f}**。','',
-        '原始逐题结果包含问题、gold、prediction、token IDs、视觉token数和截断标记，位于`artifacts/tessfold_qwen3vl_extension_20261115/predictions.rank*.jsonl`。','',
-        '## 下一步的明确边界','',
-        '原生推理通过只证明该模型可作为新版约7B扩展基模。若要保留MonkeyOCRv2 encoder接入新版LLM，仍需训练新的跨模态对齐；若采用完整Qwen3-VL-8B开展压缩，需要适配1152维视觉输入、4096维问题特征、多层DeepStack和空间位置，并重新训练压缩器。本轮没有声称这些工作已经完成。','',
-        '[UND修复闭环](TESSFOLD_SYSTEM_REPAIR_20261115.md) · [新版模型兼容性检查](TESSFOLD_QWEN_UPGRADE_FEASIBILITY.md) · [官方模型](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)']
+    doc += ['',f'Exploratory seven-task mean: **{result["macro_score_percent"]:.4f}**. ','',
+        'Raw per-question records include question, gold, prediction, token IDs, visual-token count, and truncation flag, at `artifacts/tessfold_qwen3vl_extension_20261115/predictions.rank*.jsonl`. ','',
+        '## Scope of the Next Steps','',
+        'Successful native inference establishes only feasibility of this newer, similarly sized ~7B-class backbone. Keeping the MonkeyOCRv2 encoder with a newer LLM still requires new cross-modal alignment. Compressing complete Qwen3-VL-8B requires adapting 1,152-dimensional visual inputs, 4,096-dimensional question features, multiple DeepStack levels, and spatial positions, followed by compressor retraining. This round does not claim completion of those tasks.','',
+        '[UND repair and validation](TESSFOLD_SYSTEM_REPAIR_20261115.md) · [New-backbone compatibility check](TESSFOLD_QWEN_UPGRADE_FEASIBILITY.md) · [Official model](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)']
     path=ROOT/'docs/TESSFOLD_QWEN3VL_8B_NATIVE_BASELINE.md';path.write_text('\n'.join(doc)+'\n')
     print(json.dumps(result,ensure_ascii=False),flush=True)
 

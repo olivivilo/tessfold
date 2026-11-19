@@ -1,48 +1,41 @@
-# 入口目录
+# Entry Points
 
-## 推荐入口：可从空输出目录启动
+## Recommended interfaces: no historical outputs required
 
-| 命令 | 用途 |
+| Command | Purpose |
 |---|---|
-| `python -m tessfold --help` | 查看全部接口 |
-| `python -m tessfold download-model --config CONFIG` | 下载固定来源的所选基模 |
-| `python -m tessfold download-data` | 显式下载公开数据；不在安装时运行 |
-| `python -m tessfold prepare-cohorts` | 从固定公开转换清单按索引重建三组划分 |
-| `python -m tessfold validate --config CONFIG` | 数据与图片互斥、内容和格式校验 |
-| `python -m tessfold pilot --config CONFIG --device DEVICE` | 小规模多图训练和开发集检查 |
-| `python -m tessfold train --config CONFIG --device DEVICE` | 先导合格后从同种子初始化完整训练 |
-| `python -m tessfold evaluate --config CONFIG --device DEVICE` | 读取已锁定 checkpoint，独立生成 teacher/student 答案 |
-| `python -m pytest` | 不下载基模的回归检查 |
-| `python scripts/audit_source_repo.py` | 检查 Git 上传范围是否混入结果、权重等产物 |
+| `python -m tessfold --help` | List available interfaces |
+| `python -m tessfold download-model --config CONFIG` | Download the selected backbone from a pinned source |
+| `python -m tessfold download-data` | Explicitly download public datasets; never invoked during installation |
+| `python -m tessfold prepare-cohorts` | Reconstruct three splits by indexing pinned public-source conversions |
+| `python -m tessfold validate --config CONFIG` | Validate schema, image contents, and split disjointness |
+| `python -m tessfold pilot --config CONFIG --device DEVICE` | Run a small multi-image pilot and development-set checks |
+| `python -m tessfold train --config CONFIG --device DEVICE` | After a successful pilot, train from a fresh initialization with the same seed |
+| `python -m tessfold evaluate --config CONFIG --device DEVICE` | Load the locked checkpoint and generate independent teacher/student answers |
+| `python -m pytest` | Run regression tests without downloading backbone weights |
+| `python scripts/audit_source_repo.py` | Check the Git upload surface for results, weights, and other generated files |
 
-`DEVICE` 为 `cpu` / `cuda` / `npu`。`auto` 自动选择 CUDA 或 CPU。
-`pilot`、`train` 支持 `--resume`；`evaluate --stage pilot` 可评估先导选中模型，
-正式论文实验应在预先锁定的完整训练模型上运行。
+`DEVICE` is `cpu`, `cuda`, or `npu`. `auto` selects CUDA or CPU. `pilot` and `train` support `--resume`. `evaluate --stage pilot` evaluates the pilot-selected model; formal paper experiments should use a full-training checkpoint locked in advance.
 
-## 保留的原始实验入口
+## Retained original experiment interfaces
 
-以下源码保留以解释和重建原实验，**不是新机器的即开即跑控制器**。
-其中输出路径、Slurm 分区、CANN 路径和已登记实验目录具有历史协议含义。
-各自的注册函数会创建运行文件，不能从本源码包推断对应结果或权重已存在。
+These sources are retained to explain and reconstruct historical experiments. **They are not ready-to-run controllers for a fresh machine.** Output paths, Slurm partitions, CANN paths, and registered experiment directories reflect the historical protocols. Registration functions create runtime files; their presence in the source does not imply that results or weights are included.
 
-| 子系统 | 原入口 |
+| Subsystem | Original interface |
 |---|---|
-| 原生 8B 训练 | `scripts/tessfold_accel/qwen_training.py` |
-| 原生 StableColumn 训练 | `scripts/tessfold_accel/qwen_training_stable.py` |
-| 共享缓存并发修复 | `scripts/tessfold_accel/run_qwen_safe.py` |
-| 原生 8B 正式/时延评测 | `scripts/tessfold_accel/qwen_formal.py`, `qwen_eval_safe.py` |
-| 8B 新增 10%/75% 实验 | `scripts/tessfold_budget1075/{common,run,controller}.py` |
-| UND 空间压缩训练 | `scripts/train_compression_lab_v2{,_distributed,_repaired}.py` |
-| UND 正式 benchmark | `scripts/benchmark_compression_lab_v2.py` |
-| 系统严格推理与接口修复 | `scripts/tessfold_repair/` |
-| 精确性/计时/显存/同页多问/真实 batch | `scripts/tessfold_accel/` 对应模块 |
-| MetaCompress loss、生成器和基线 | `vqa/meta_compress.py`, `scripts/train_meta_compress*.py` |
-| 第一/第二轮生成器搜索 | `scripts/train_compression_lab*.py` 与 `vqa/compression_generators*.py` |
-| 早期官方 UND 复测与 LoRA | `scripts/run_official_und.sh` 等；ms-swift 需另装 |
+| Native 8B training | `scripts/tessfold_accel/qwen_training.py` |
+| Native StableColumn training | `scripts/tessfold_accel/qwen_training_stable.py` |
+| Shared-cache concurrency repair | `scripts/tessfold_accel/run_qwen_safe.py` |
+| Native 8B formal evaluation and timing | `scripts/tessfold_accel/qwen_formal.py`, `qwen_eval_safe.py` |
+| Additional 8B 10%/75% experiments | `scripts/tessfold_budget1075/{common,run,controller}.py` |
+| UND spatial compression training | `scripts/train_compression_lab_v2{,_distributed,_repaired}.py` |
+| UND formal benchmark | `scripts/benchmark_compression_lab_v2.py` |
+| Strict system inference and interface repair | `scripts/tessfold_repair/` |
+| Equivalence, timing, memory, same-page multi-question, and real-batch tests | Corresponding modules in `scripts/tessfold_accel/` |
+| MetaCompress loss, generator, and baselines | `vqa/meta_compress.py`, `scripts/train_meta_compress*.py` |
+| First- and second-round generator searches | `scripts/train_compression_lab*.py` and `vqa/compression_generators*.py` |
+| Earlier official UND evaluation and LoRA | `scripts/run_official_und.sh` and related scripts; install ms-swift separately |
 
-独立的融合视觉、segmented、hard、packed、prefix-cache 等推理候选仍保留，
-但不作为新入口的隐式默认后端。必须分别通过数值与输出一致性验证，
-不能因为有候选代码就宣称与严格路径 bit-exact 或更快。
+Fused-vision, segmented, hard, packed, and prefix-cache candidates are retained as separate inference variants, not implicit defaults of the portable interface. Each requires its own numerical and output-equivalence validation. The existence of an implementation does not establish bit-exactness or a speed advantage over the strict path.
 
-原报告生成脚本属于生成报告的**程序**；本仓库没有附这些程序过去生成的报告和分数。
-若运行了旧控制器，它可能自动提交 Slurm 作业，请先审阅它的动作与集群配置。
+Report-generation scripts are programs that produce reports; their previously generated reports and scores are not included. Historical controllers may submit Slurm jobs automatically. Review their actions and cluster settings before running them.

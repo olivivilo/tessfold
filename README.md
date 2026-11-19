@@ -1,37 +1,37 @@
-# TessFold：冻结视觉语言模型的文档 Token 压缩
+# TessFold: Visual Token Compression for Document Understanding
 
-本仓库整理自当前开发版本，只包含代码、配置、公开来源锁定信息和复现说明。**不包含实验结果、模型/压缩器权重、数据集、特征缓存或虚拟环境。** 所有运行产物均被 `.gitignore` 排除。
+This repository contains the current research implementation, configuration templates, pinned public-source metadata, and reproduction instructions. **Experimental results, pretrained models, compressor checkpoints, datasets, feature caches, and virtual environments are excluded.** Generated files are covered by `.gitignore`.
 
-两个模型路线有不同结构，请明确区分：
+Two distinct backbone configurations are supported:
 
-| 路线 | 冻结的主干 | P 的位置 | 生成器 |
+| Configuration | Frozen backbone | Compression-matrix insertion point | Generator |
 |---|---|---|---|
-| `und` | 官方 MonkeyOCRv2-B-Und，包含其原视觉塔、merger 和 Qwen3-1.7B | merger 前，或 merger 后、LLM 前 | 问题条件空间树 / 自适应列划分 |
-| `native8b` | 完整原生 Qwen3-VL-8B-Instruct | 原生 merger 后，对最终视觉特征和三条 DeepStack 分支同步压缩 | Tree / Column / 独立 StableColumn 变体 |
+| `und` | Official MonkeyOCRv2-B-Und, including its visual encoder, merger, and Qwen3-1.7B | Before the merger, or after the merger and before the LLM | Question-conditioned spatial tree / adaptive column partitioning |
+| `native8b` | Complete native Qwen3-VL-8B-Instruct | After the native merger; the same matrix compresses the final visual features and all three DeepStack branches | Tree / Column / the separate StableColumn variant |
 
-原生 8B 路线使用自己的视觉塔与 LLM，不能描述为 MonkeyOCRv2-Und 换了一个 LLM。两条路线均冻结整个主干，仅训练新加入的压缩矩阵生成器。
+The native 8B configuration uses its own visual encoder and LLM; it is not an LLM replacement within MonkeyOCRv2-Und. In both configurations, the entire backbone is frozen and only the added compression-matrix generator is trained.
 
-## 从哪里开始
+## Getting started
 
-建议在仓库根目录运行命令。环境使用 Python 3.10 的 `venv`；需要 C++17 编译器 `g++`。
+Run commands from the repository root. Use a Python 3.10 `venv` and a C++17 compiler (`g++`).
 
 ```bash
-# CPU 安装与无需模型权重的回归检查
+# CPU installation and regression tests that require no model weights
 PYTHON_BIN=python3.10 DEVICE=cpu bash scripts/bootstrap_portable.sh
 .venv/bin/python -m pytest
 .venv/bin/python -m tessfold --help
 ```
 
-CUDA / Ascend 需要先匹配设备驱动与 PyTorch wheel；详见 [环境构建](docs/INSTALL.md)。CPU 可以运行单元测试，但完整 8B 训练需要足够内存和计算资源。
+For CUDA or Ascend, install compatible drivers and PyTorch wheels first; see [Installation](docs/INSTALL.md). Unit tests run on CPU, whereas full 8B training requires substantially more memory and compute.
 
-## 模型、数据和训练入口
+## Models, data, and training
 
-从 `configs/portable/` 复制一个配置到被 Git 忽略的 `configs/local/`，修改外部模型、数据路径与输出目录：
+Copy a configuration from `configs/portable/` into the Git-ignored `configs/local/` directory. Edit the external model and data paths and the output directory.
 
 ```bash
 mkdir -p configs/local
 cp configs/portable/native_tree50.json configs/local/run.json
-# 编辑 configs/local/run.json 后：
+# After editing configs/local/run.json:
 .venv/bin/python -m tessfold download-model --config configs/local/run.json
 .venv/bin/python -m tessfold validate --config configs/local/run.json
 .venv/bin/python -m tessfold pilot --config configs/local/run.json --device npu
@@ -39,54 +39,54 @@ cp configs/portable/native_tree50.json configs/local/run.json
 .venv/bin/python -m tessfold evaluate --config configs/local/run.json --device npu
 ```
 
-`download-model` 是显式下载操作；其他命令只加载本地模型。数据准备见 [数据来源、格式与精确划分](docs/DATA.md)。发布仓库里只保存公开数据的来源信息与行索引重建配方，没有问答正文或答案。
+`download-model` explicitly downloads model files; the other commands load local models only. See [Data sources, format, and exact splits](docs/DATA.md) for data preparation. The repository contains public-source metadata and row-index reconstruction recipes, not question text or reference answers.
 
-多设备可把训练/评测命令改成：
+For distributed training or evaluation, use `torchrun`:
 
 ```bash
 .venv/bin/python -m torch.distributed.run --standalone --nproc_per_node=4 \
   -m tessfold train --config configs/local/run.json --device npu
-# 中断后，保持配置、代码、数据、模型及 world size 不变：
+# Resume with the same configuration, code, data, model, and world size:
 .venv/bin/python -m torch.distributed.run --standalone --nproc_per_node=4 \
   -m tessfold train --config configs/local/run.json --device npu --resume
 ```
 
-先导实验也支持 `--resume`。默认完整训练必须先通过同配置的先导门槛；通过后重新初始化生成器，不从先导权重续训。开发集选出的 checkpoint 在正式评测前锁定；正式测试分数不参与选模。
+Pilot runs also support `--resume`. By default, full training requires a successful pilot with the same configuration. Full training then starts from a fresh generator initialization rather than the pilot weights. Checkpoints are selected on the development set and locked before formal evaluation. Test scores never determine model selection.
 
-## 代码地图
+## Repository structure
 
-| 路径 | 作用 |
+| Path | Purpose |
 |---|---|
-| `tessfold/` | 新增可移植入口：配置、数据验证、来源锁定、训练、断点和独立评测 |
-| `vqa/compression_generators_v2.py` | 原 UND 空间生成器，包括 Tree 与 Column |
-| `vqa/tessfold_qwen3vl.py` | 原生 8B 的冻结主干接口、Tree/Column、四分支凸组合和 MRoPE |
-| `vqa/tessfold_qwen3vl_stable.py` | 独立 StableColumn 变体，固定 detail 驱动分区 |
-| `vqa/tessfold_native_partition.py` / `*.cpp` | 具有参考计算顺序的 C++ 分区实现及运行时构建 |
-| `vqa/tessfold_*runtime.py`, `tessfold_prefix_cache.py` | 严格推理、分段候选、原生分区和独立问题 KV 管理 |
-| `vqa/benchmark_metrics.py` | DocVQA / InfoVQA / ChartQA / OCRBench / DUE / WTQ / DT-VQA 指标 |
-| `scripts/tessfold_accel/`, `tessfold_budget1075/`, `tessfold_repair/` | 保留的原实验训练、评测、计时、统计、审计与集群调度源码 |
-| `scripts/` 其他模块 | 数据转换、既有压缩器基线/消融、诊断和报告生成代码 |
-| `tests/` | 不下载基模的 CPU 数学、数据隔离、训练与恢复回归检查 |
+| `tessfold/` | Portable entry points for configuration, data validation, source pinning, training, checkpointing, and independent evaluation |
+| `vqa/compression_generators_v2.py` | Original UND spatial generators, including Tree and Column |
+| `vqa/tessfold_qwen3vl.py` | Frozen native 8B interface, Tree/Column, four-branch convex aggregation, and MRoPE handling |
+| `vqa/tessfold_qwen3vl_stable.py` | Separate StableColumn variant with fixed detail-based partition allocation |
+| `vqa/tessfold_native_partition.py` / `*.cpp` | C++ partition implementation that preserves reference arithmetic, with runtime compilation |
+| `vqa/tessfold_*runtime.py`, `tessfold_prefix_cache.py` | Strict inference, segmented candidates, native partitioning, and independent-question KV management |
+| `vqa/benchmark_metrics.py` | DocVQA, InfoVQA, ChartQA, OCRBench, DUE, WTQ, and DT-VQA metrics |
+| `scripts/tessfold_accel/`, `tessfold_budget1075/`, `tessfold_repair/` | Original training, evaluation, timing, statistics, audit, and cluster orchestration scripts |
+| Other modules in `scripts/` | Data conversion, compressor baselines and ablations, diagnostics, and report generation |
+| `tests/` | CPU tests for mathematical properties, data isolation, training, and recovery without downloading a backbone |
 
-完整入口与兼容性边界见 [ENTRYPOINTS](docs/ENTRYPOINTS.md)，结构与原实现对应关系见 [METHOD](docs/METHOD.md)。
+See [Entry points](docs/ENTRYPOINTS.md) for compatibility details and [Method](docs/METHOD.md) for the architecture and its implementation.
 
-## 复现的准确范围
+## Reproduction scope
 
-`vqa/` 保留当前方法实现；仅为模型路径添加可配置入口。新增 `tessfold/` 去除了对历史结果目录的启动依赖，默认训练使用完整词表 `KL(teacher || student)`、teacher 自己生成的公共回答前缀，不使用 gold 训练，也不加行熵。
+`vqa/` retains the current method implementations, with configurable model paths added. The portable `tessfold/` runner removes startup dependencies on historical result directories. Its default objective is full-vocabulary `KL(teacher || student)` under a shared teacher-generated response prefix, without gold-answer training or row entropy.
 
-可移植入口采用统一的开发集门槛、原生任务指标和精确末批梯度权重；它不是所有历史实验协议的逐字替代。例如旧 UND 全训练有固定 epoch 选模和 field-EM 口径，与新入口不同。需要复现特定历史协议时，请使用保留的对应原脚本并重新生成它所需的登记文件。不同脚本的实际差异见 [REPRODUCIBILITY](docs/REPRODUCIBILITY.md)。
+The portable runner uses a common development-set selection criterion, native task metrics, and exact gradient weighting for short final batches. It does not reproduce every historical protocol verbatim. For example, earlier UND experiments used fixed-epoch selection and field-level exact-match reporting. To reproduce a particular historical protocol, use the corresponding retained scripts and regenerate their required registrations. See [Reproducibility](docs/REPRODUCIBILITY.md) for these differences.
 
-此源码整理经过离线单元测试、合成冻结 decoder 的训练/恢复/评测检查，以及公开清单索引重建检查。**本次整理没有重新进行真实 8B / UND 全量训练，也不以合成测试声明论文任务得分可复现。** 硬件、依赖、数据版本及数值后端仍影响结果。
+The source release has been checked with offline unit tests, a synthetic frozen-decoder training/resume/evaluation cycle, and reconstruction of public-manifest row indices. **This source preparation did not repeat full training with the real 8B or UND backbone. Synthetic tests do not establish reproduction of the paper's VQA scores.** Hardware, dependencies, dataset versions, and numerical kernels can affect results.
 
-## 发布前检查
+## Before publishing
 
 ```bash
 git status --short
 .venv/bin/python scripts/audit_source_repo.py
-# 初始化已在本地完成。实际发布时填写自己的远程地址：
+# Git is initialized locally. Replace this placeholder with your repository URL:
 git remote add origin <YOUR_GITHUB_REPOSITORY_URL>
 git commit -m "Add TessFold reproducible source"
 git push -u origin main
 ```
 
-引用 MetaCompress、MonkeyOCRv2 和相关工作见 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md) 与 [BibTeX](docs/references.bib)。本整理不代替权利人决定新增代码的对外开源授权；项目授权状态也在该文件中说明。
+For attribution to MetaCompress, MonkeyOCRv2, and related work, see [Third-party notices](THIRD_PARTY_NOTICES.md) and the [bibliography](docs/references.bib). The licensing status of the project's added code is documented in the notices; this source preparation does not assign a license on behalf of the rights holder.

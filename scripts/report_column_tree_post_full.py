@@ -12,7 +12,7 @@ from scripts.column_tree_post_full_suite import ROOT, BASE, SUITE, REGISTRATION,
 from vqa.benchmark_metrics import native_score
 
 VARIANTS = ['initial', 'trained', 'mean', 'selection', 'cell_mean', 'cell_selection']
-LABEL = {'col_adaptive': '自适应列划分', 'quadtree_question': '问题条件空间树'}
+LABEL = {'col_adaptive': 'Adaptive column partitioning', 'quadtree_question': 'Question-conditioned spatial tree'}
 REPORT = ROOT / 'docs/COLUMN_TREE_POST_MERGER_FULL_COMPARISON.md'
 
 
@@ -211,24 +211,24 @@ def plot(record, info):
 
 def smoke_report(state):
     done = load(SUITE / 'smoke/complete.json')
-    doc = ['## 启动与技术检查过程', '', f"当前控制阶段：`{state.get('suite_stage', 'registered')}`。", '',
-           'Merger前八组完整评测及审计结束后才提交本轮NPU任务。每个配置先在独立进程中检查P非负、行和为1、压缩数与预算一致、输入Qwen特征严格等于PX、梯度非零且有限、主干冻结和参数实际更新；检查权重不用于全量初始化。', '',
-           '两道训练题与两道固定验证题上的技术检查loss/生成分仅用于记录，不是多图泛化结论，也不用于改超参数或选择配置。此前144组筛查已包含这两种结构的post-merger 10%/25%/50%实验。', '']
+    doc = ['## Startup and Technical Checks', '', f"Current controller stage: `{state.get('suite_stage', 'registered')}`. ", '',
+           'Submit this round’s NPU jobs only after all eight pre-merger formal runs/audits complete. In a separate process per configuration, check nonnegative unit-sum P, budget length, exact PX decoder inputs, nonzero finite gradients, frozen backbone, and actual parameter updates. Check-run weights never initialize full runs.', '',
+           'Loss/generation checks on two training and two validation questions are technical records, not multi-image generalization, and select no hyperparameters/configurations. Earlier 144-run screening already includes post-merger 10%/25%/50% variants of these architectures.', '']
     if done:
-        doc += [f"八配置技术检查通过，作业 {done['job']}。", '', '|生成器|保留率|训练KL前→后|2题验证KL前→后|2题验证分前→后|梯度范数|', '|---|---:|---:|---:|---:|---:|']
+        doc += [f"Eight-configuration technical checks passed; job  {done['job']}. ", '', '|Generator|Retention fraction|Training KL: before → after|Two-question validation KL: before → after|Two-question validation score: before → after|Gradient norm|', '|---|---:|---:|---:|---:|---:|']
         for r in done['results']:
             doc.append(f"|{LABEL[r['kind']]}|{r['ratio']:.0%}|{r['train_before']['kl']:.5f}→{r['train_after']['kl']:.5f}|{r['validation_before']['kl']:.5f}→{r['validation_after']['kl']:.5f}|{r['validation_before']['student_macro']:.2f}→{r['validation_after']['student_macro']:.2f}|{r['gradient_norm']:.5f}|")
         doc.append('')
     else:
-        doc += ['技术检查尚未完成；未报告为已通过。', '']
+        doc += ['Technical checks incomplete; no pass claimed.', '']
     return doc
 
 
 def position_comparison(reg, results):
     pre = load(BASE / 'column_tree_full_20261108/merged_results.json').get('results', {})
-    doc = ['## 与merger前的配对位置对照', '',
-           '两位置使用同样的数据、seed、训练步数和固定epoch4。前位置生成器的X槽为0；后位置允许读取原始H及merger后的X，因此差异包含插入位置和其可用输入信息的共同影响，不称为仅线性算子顺序的严格消融。官方vision构造器实际向PatchMerger传spatial_merge_size=1（config.json中的2用于空间顺序），逐token做768→2048映射，两个位置token数一致；预算为max(1, round(ratio×N))。', '',
-           '|保留率|生成器|前：八任务均分|后：八任务均分|后−前|前：DocVQA|后：DocVQA|', '|---|---|---:|---:|---:|---:|---:|']
+    doc = ['## Paired Comparison Against Pre-Merger Insertion', '',
+           'Both insertion points use identical data, seed, training steps, and fixed epoch 4. Before-merger X inputs are zero; after-merger generators may read raw H and projected X. Differences therefore include available input information as well as insertion point, not merely operator order. The official vision constructor passes spatial_merge_size=1 to PatchMerger (the config.json value 2 governs spatial ordering), applying a tokenwise 768→2048 mapping. Token counts match across positions; budget=max(1,round(ratio×N)).', '',
+           '|Retention fraction|Generator|Before: eight-task mean|After: eight-task mean|After − before|Before: DocVQA|After: DocVQA|', '|---|---|---:|---:|---:|---:|---:|']
     fmt = lambda x: '—' if x is None else f'{x:.2f}'
     for record in sorted(reg['runs'], key=lambda r: (r['ratio'], r['kind'])):
         a = pre.get(record['name'].replace('_post-merger_', '_pre-merger_'))
@@ -266,77 +266,77 @@ def main():
             browser(record)
         plot(record, info)
     fmt = lambda x, n=2: '—' if x is None else f'{x:.{n}f}'
-    doc = ['# Merger后压缩：自适应列划分与问题条件空间树全量对照', '',
-           f'更新UTC：{now()}。正式结果已完成且审计通过 {len(results)}/8 组；全部8组本轮新训练。', '',
-           '**入口**：状态/更新报告 `.venv/bin/python -m scripts.column_tree_post_full_suite status`；中断恢复 `.venv/bin/python -m scripts.column_tree_post_full_suite resume`；最终核验 `.venv/bin/python -m scripts.report_column_tree_post_full --require-complete`。', '',
-           '## 实验设计与纠正', '',
-           '本轮在token保留率10%、25%、50%、75%比较col_adaptive与quadtree_question，全部固定post-merger：encoder H → 原始merger X → PX → Qwen。生成器输入为归一化的H(768维)与X(2048维)，不是merger(PH)。列方案不使用问题计算P；问题条件树使用当前问题前64个token的冻结Qwen输入词embedding。代码里的树是矩形递归二分，非标准四子节点quadtree。', '',
-           '本轮按用户要求，在merger前八组评测完成并通过审计后启动；两结构×四预算均从同一seed新初始化，不使用任何merger前生成器权重。原merger前结果与作答文件保持独立。', '',
-           '本轮为用户指定的固定位置对照，不按正式分数选择架构、seed或checkpoint；先进行八配置真实UND前向/反向技术检查，再完整训练。技术检查不筛选较好方案、不复用其权重。正式集合此前已被查看，本轮不称为新的盲测。', '',
-           '## 实际生成器与压缩结构', '',
-           '共同骨架：H与X分别做无仿射LayerNorm，拼接2816→96线性+GELU，再接96通道3×3 depthwise/pointwise残差卷积；重要性MLP为96→96→1，末层权重std=.01。区域内使用温度τ=.25+softplus(t)的masked softmax生成P，初始τ约.943；P非负、每行和为1，输出只能是PX，latent不能直接替代视觉值。', '',
-           '自适应列划分：以encoder局部高频细节乘以学习的重要性构造分区能量，优先纵向二分，高或宽耗尽时切换方向，得到恰好M个非空、不相交矩形；每个区域内部学习凸组合权重。它不使用问题计算P。', '',
-           '问题条件空间树：在同一骨架上增加问题词embedding的2048→96映射及视觉word_key，取归一化视觉/词特征最大相似度加入重要性；按区域长轴递归二分得到M个矩形，并学习各区域内权重。虽代码名quadtree，实际为二叉矩形空间树。问题来自当前题目，teacher答案、gold和其他问答上下文都不输入P生成器。', '',
-           '两方案的离散分区决策均detach，不宣称整棵树可微；梯度通过区域内softmax和重要性网络。二维操作遵循官方block顺序，输出按P行最大权重所对应的原token序号排序。详细算法与文献来源沿用[第二轮结构文档](COMPRESSION_GENERATOR_V2_DESIGNS.md)；本轮不新增架构。', '',
-           '## 数据、训练与评测配置', '',
-           '- 原20,000QA / 16,731图像，保持文件、样本顺序和逐epoch shuffle规则；不重新抽样、不做任务平衡。',
-           '- 原固定验证56QA/56图像、历史审计14QA/7图像。历史审计仅2图属于20k训练集，保持原集不变；全训练KL另按每epoch全部batch汇总。',
-           '- 正式评测严格复用23,565QA：DocVQA/InfoVQA取原val的对应任务，加原test的全部任务；不把未使用的原val任务混入。训练/验证/正式集按document_id核对无交集。',
-           '- 官方MonkeyOCRv2-B-Und encoder、原merger、Qwen3-1.7B全冻结，只训练P生成器；每组fresh初始化，seed20261105，无小规模权重warm start。',
-           '- 每组4epochs、625更新/epoch、共2500更新；AdamW LR3e-4、wd0、batch32、clip1；250步warmup，cosine至峰值LR的10%。8NPU，每rank累积4题，无padding。',
-           '- KL-only、T=1、teacher||student；教师自身greedy回答作共同前缀。训练教师与小验证生成cap64；正式greedy生成cap256。无行熵/列质量正则；不是decoder-free loss。',
-           '- 每25更新提交latest与optimizer；每epoch固定保存并验证，最终固定epoch4。正式逐题保留initial/trained/mean/selection/cell_mean/cell_selection六项，每组141,390条，不跨seed或压缩采样取平均。',
-           '- CPU使用.venv，NPU使用.venv-und；沿用已验证不可变cache读写修复，生成器、loss、原模型推理和scorer源码不变。正式评测8个独立worker，与旧14worker分片不同，但问题/生成设置一致。', '',
-           '正式分数为八任务原生指标等权宏平均（百分制）；DeepForm/KLC为字段exact，DT-VQA沿用既有scorer，不能当作论文官方文档级F1或统一榜单。单seed完整训练；图像bootstrap不表示训练seed方差。', '',
-           '[不可变实验登记、配置哈希与数据审计](../artifacts/compression_lab_v2/column_tree_post_full_20261108/registration.json) · [实时机器状态](../artifacts/compression_lab_v2/column_tree_post_full_20261108/state.json) · [逐组结果审计](../artifacts/compression_lab_v2/column_tree_post_full_20261108/audits/)。', '',
-           '## 八组训练与正式结果总表', '',
-           '|保留率|生成器|来源/阶段|训练更新|正式记录|teacher|initial|trained|teacher分数保留率|',
+    doc = ['# Post-Merger Compression: Full Comparison of Adaptive Column Partitioning and Question-Conditioned Spatial Trees', '',
+           f'Updated (UTC): {now()}. Formal results are complete and audited:  {len(results)}/8 runs; all 8 trained afresh this round.', '',
+           '**Entry point**: status/report refresh  `.venv/bin/python -m scripts.column_tree_post_full_suite status`; resume after interruption  `.venv/bin/python -m scripts.column_tree_post_full_suite resume`; final verification  `.venv/bin/python -m scripts.report_column_tree_post_full --require-complete`. ', '',
+           '## Experimental Design and Corrections', '',
+           'Compare col_adaptive and quadtree_question at 10%/25%/50%/75% retention, all post-merger: encoder H → original merger X → PX → Qwen. Generator inputs are normalized H (768 dimensions) and X (2,048), not merger(PH). Column does not use the question to generate P. Tree uses frozen Qwen input embeddings for the current question\'s first 64 tokens. Despite the quadtree identifier, it recursively bisects rectangles rather than forming a standard four-child quadtree.', '',
+           'Start only after eight pre-merger evaluations/audits complete. Both architectures/four budgets initialize afresh from the same seed without pre-merger generator weights; earlier pre-merger results remain separate.', '',
+           'This requested fixed-position comparison does not select architecture/seed/checkpoint by formal score. Eight real-UND forward/backward checks precede full training, without screening winners or reusing check weights. Formal data were inspected earlier, so this is not a new blind test.', '',
+           '## Implemented Generator and Compression Architecture', '',
+           'Shared architecture: affine-free LayerNorm on H and X separately, concatenation, a 2816→96 linear layer + GELU, then a 96-channel 3×3 depthwise/pointwise residual convolution. The importance MLP is 96→96→1, with final-weight std=.01. Within-region masked softmax uses τ=.25+softplus(t), initially about .943. P is nonnegative with unit row sums; output values are PX only, not arbitrary learned latent values.', '',
+           'Adaptive Column: multiply local high-frequency encoder detail by learned importance to allocate exactly M nonempty disjoint rectangles, preferring vertical bisection and switching at exhausted dimensions. Learn within-region convex weights; P is question-independent.', '',
+           'Question-conditioned spatial tree: add a 2048→96 question-word projection and visual word_key to the shared architecture. Maximum normalized visual/word similarity augments importance. Recursively bisect the longer region axis into M rectangles and learn within-region weights. Despite the quadtree identifier, this is a binary rectangular spatial tree. P receives the current question only, not teacher answers, gold, or other QA context.', '',
+           'Both methods detach discrete partition decisions; the whole tree is not differentiable. Gradients pass through within-region softmax and importance networks. Respect official block order and sort output rows by their maximum-weight original-token index. See the [second-round architecture document](COMPRESSION_GENERATOR_V2_DESIGNS.md); no new architectures in this round.', '',
+           '## Data, Training, and Evaluation Configuration', '',
+           '- Original 20,000 QA / 16,731 images; retain files, sample order, and epoch-shuffle rules without resampling or task balancing.',
+           '- Fixed validation: 56 QA / 56 images; historical audit: 14 QA / 7 images. Only 2 audit images belong to 20k training; preserve that audit set and separately summarize full-training KL over every batch/epoch.',
+           '- Formal evaluation reuses exactly 23,565 QA: DocVQA/InfoVQA from their original validation partitions plus all original-test tasks, excluding unused validation tasks. Training/development/formal document IDs are disjoint.',
+           '- Official MonkeyOCRv2-B-Und encoder, original merger, and Qwen3-1.7B are frozen; train only P. Every run initializes fresh with seed 20261105, without a small-run warm start.',
+           '- Four epochs/run, 625 updates/epoch, 2,500 total; AdamW LR=3e-4, wd=0, batch=32, clip=1; 250-step warmup, cosine to 10% peak LR; 8 NPUs, 4-question accumulation/rank, no padding.',
+           '- KL-only, T=1, teacher||student; teacher-greedy answers are shared prefixes. Training-teacher/small-validation cap=64, formal greedy cap=256. No row-entropy/column-mass regularization; not a decoder-free loss.',
+           '- Commit latest and optimizer state every 25 updates; save and evaluate each epoch, with epoch 4 fixed as the final model. Formal per-question outputs retain initial/trained/mean/selection/cell_mean/cell_selection: 141,390 records per run, without averaging over training seeds or compression samples.',
+           '- CPU uses .venv and NPU .venv-und. Retain the verified immutable-cache I/O repair without changing generator/loss/inference/scorer computations. Formal evaluation uses 8 independent workers rather than the earlier 14, with identical questions and generation settings.', '',
+           'Formal scores are equally weighted eight-task native macros (%). DeepForm/KLC field exact and retained DT-VQA scoring are not official document-F1/unified rankings. One full-training seed; image bootstrap does not measure seed variance.', '',
+           '[Immutable experiment registration, configuration hashes, and data audit](../artifacts/compression_lab_v2/column_tree_post_full_20261108/registration.json) · [Live machine-readable status](../artifacts/compression_lab_v2/column_tree_post_full_20261108/state.json) · [Per-run result audits](../artifacts/compression_lab_v2/column_tree_post_full_20261108/audits/). ', '',
+           '## Summary of Eight Training Runs and Formal Evaluations', '',
+           '|Retention fraction|Generator|Source / stage|Training updates|Formal records|teacher|initial|trained|Teacher-score retention|',
            '|---|---|---|---:|---:|---:|---:|---:|---:|']
     for record in sorted(reg['runs'], key=lambda x: (x['ratio'], x['kind'])):
         name = record['name']; info = progress[name]; result = results.get(name); mm = result['macro'] if result else {}
-        stage = '历史复用，已审计' if record['reuse'] else state.get('runs', {}).get(name, {}).get('stage', 'registered')
+        stage = 'Historical run reused and audited' if record['reuse'] else state.get('runs', {}).get(name, {}).get('stage', 'registered')
         if result and not record['reuse']:
-            stage = '正式完成，已审计'
+            stage = 'Formal evaluation completed and audited'
         retained = 100 * mm['trained'] / mm['teacher'] if mm else None
         doc.append(f'|{record["ratio"]:.0%}|{LABEL[record["kind"]]}|{stage}|{info["logged_updates"]}/2500|{info["benchmark_records"]}/141390|{fmt(mm.get("teacher"))}|{fmt(mm.get("initial"))}|{fmt(mm.get("trained"))}|{fmt(retained)}|')
     legacy = load(BASE / 'full/full_global_topk_pre-merger_r0.25/benchmark/summary.json')
-    doc += ['', f'历史25% global_topk单列参考：teacher {legacy["macro"]["teacher"]:.2f}，initial {legacy["macro"]["initial"]:.2f}，trained {legacy["macro"]["trained"]:.2f}。它不进入问题条件树的预算曲线。', '',
-            '“—”表示尚无完成且审计通过的正式结果，不能用56QA小验证或筛选分替代。', '', '## 各预算逐任务正式对比', '']
+    doc += ['', f'Historical 25% global_topk reference only: teacher  {legacy["macro"]["teacher"]:.2f}, initial {legacy["macro"]["initial"]:.2f}, trained {legacy["macro"]["trained"]:.2f}. It is excluded from the question-conditioned-tree budget curve.', '',
+            '“—” means no completed/audited formal result; do not substitute 56-QA validation or screening scores.', '', '## Formal Per-Task Comparison at Each Budget', '']
     tasks = sorted({r['task'] for r in expected.values()})
     for ratio in [.1, .25, .5, .75]:
         cc = results.get(f'full_col_adaptive_post-merger_r{ratio:g}')
         tt = results.get(f'full_quadtree_question_post-merger_r{ratio:g}')
-        doc += [f'### 保留{ratio:.0%}', '', '|任务|teacher|列initial|列trained|树initial|树trained|列trained−树trained|', '|---|---:|---:|---:|---:|---:|---:|']
-        for task in ['宏平均', *tasks]:
-            c = (cc['macro'] if task == '宏平均' else cc['tasks'][task]) if cc else {}
-            t = (tt['macro'] if task == '宏平均' else tt['tasks'][task]) if tt else {}
+        doc += [f'### Retained Components{ratio:.0%}', '', '|Task|teacher|Column initial|Column trained|Tree initial|Tree trained|Column trained − Tree trained|', '|---|---:|---:|---:|---:|---:|---:|']
+        for task in ['Macro average', *tasks]:
+            c = (cc['macro'] if task == 'Macro average' else cc['tasks'][task]) if cc else {}
+            t = (tt['macro'] if task == 'Macro average' else tt['tasks'][task]) if tt else {}
             teacher = (c or t).get('teacher')
             delta = c['trained'] - t['trained'] if c and t else None
             doc.append(f'|{task}|{fmt(teacher)}|{fmt(c.get("initial"))}|{fmt(c.get("trained"))}|{fmt(t.get("initial"))}|{fmt(t.get("trained"))}|{fmt(delta)}|')
         doc.append('')
     doc += position_comparison(reg, results)
     doc += smoke_report(state)
-    doc += ['## 逐组配置、逐epoch loss与生成分', '']
+    doc += ['## Per-Run Configurations and Per-Epoch Loss/Generation Scores', '']
     for record in reg['runs']:
         name = record['name']; info = progress[name]; cfg = load(ROOT / record['config'])
-        doc += [f'### {LABEL[record["kind"]]} / 保留{record["ratio"]:.0%}', '',
-                f'[完整配置](../{record["config"]})；seed {cfg["seed"]}，post-merger，固定epoch4。', '',
-                '|epoch|已记录更新|全训练batch平均KL|历史审计KL|验证KL|小验证生成宏平均|', '|---|---:|---:|---:|---:|---:|']
+        doc += [f'### {LABEL[record["kind"]]} / retain {record["ratio"]:.0%}', '',
+                f'[Full configuration](../{record["config"]}); seed {cfg["seed"]}, post-merger, fixed epoch 4.', '',
+                '|epoch|Recorded updates|Full-training batch-mean KL|Historical audit KL|Development KL|Small-development-set generation macro|', '|---|---:|---:|---:|---:|---:|']
         for e in info['epochs']:
             doc.append(f'|{e["epoch"]}|{e["updates"]}/625|{fmt(e["train_batch_kl"],5)}|{fmt(e["audit_kl"],5)}|{fmt(e["validation_kl"],5)}|{fmt(e["validation_score"])}|')
-        doc += ['', 'epoch0为初始化，不包含训练更新；未满625更新的均值是当前部分epoch。不同集合的KL绝对数值不可直接比较；小验证cap64不等于正式cap256。', '']
+        doc += ['', 'Epoch 0 is initialization, without updates; means before 625 steps describe partial epochs. Absolute KL differs across sets; cap=64 small validation is not cap=256 formal evaluation.', '']
         curve = SUITE / 'plots' / f'{name}.pdf'
         if curve.exists():
-            doc += [f'[训练/审计/验证KL与验证生成分曲线](../{curve.relative_to(ROOT)})。', '']
+            doc += [f'[Training/audit/validation KL and validation generation curves](../{curve.relative_to(ROOT)}). ', '']
         out = ROOT / record['output']
         if name in results:
             mm = results[name]['macro']; pair = results[name]['paired_trained_vs_initial']; ci = pair['cluster_bootstrap_95ci_points']
-            doc += [f'正式训练增益 {pair["gain_points"]:+.2f} 点，图像聚类95%CI [{ci[0]:.2f}, {ci[1]:.2f}]；相对teacher {mm["trained"]-mm["teacher"]:+.2f} 点。', '',
-                    f'[逐题CSV](../{record["output"]}/benchmark/answers.csv) · [图像/gold/teacher/initial/trained作答对比](../{record["output"]}/benchmark/review.html) · [机器结果](../{record["output"]}/benchmark/summary.json) · [epoch4权重](../{record["output"]}/epoch4.pt)。', '']
-    doc += ['## 恢复与完成规则', '',
-            'CPU控制器独立于交互会话，最多同时保持2个NPU阶段作业，按固定顺序训练并自动进入全量评测，随后进行逐题覆盖、gold、teacher、评分复算、配置/代码/权重哈希审计，生成CSV、作答HTML与曲线并更新本页。', '',
-            '每阶段最多3次基础设施恢复，保留原seed、8NPU分片与checkpoint，不放宽科学协议；超过次数保留失败状态与日志，等待诊断。完成标志、逐题覆盖与审计全部通过后才写正式分数。全部merger前状态文件、权重、正式作答均不覆盖。', '',
-            '任务未完成时可用resume重新启动控制器，已有作业会保留。控制器及所有阶段日志位于artifacts/compression_lab_v2/column_tree_post_full_20261108/。']
+            doc += [f'Formal training gain {pair["gain_points"]:+.2f}  points; image-cluster 95% CI [{ci[0]:.2f}, {ci[1]:.2f}]; relative to teacher  {mm["trained"]-mm["teacher"]:+.2f}  points.', '',
+                    f'[Per-question CSV](../{record["output"]}/benchmark/answers.csv) · [Image/gold/teacher/initial/trained answers](../{record["output"]}/benchmark/review.html) · [Machine-readable results](../{record["output"]}/benchmark/summary.json) · [Epoch-4 weights](../{record["output"]}/epoch4.pt). ', '']
+    doc += ['## Recovery and Completion Criteria', '',
+            'The CPU controller runs independently of the interactive session, with at most 2 NPU stage jobs at once. Fixed-order training proceeds to full evaluation, followed by coverage/gold/teacher/score/config/code/weight audits, CSV/HTML/curve generation, and this report.', '',
+            'At most 3 infrastructure recoveries/stage retain seed, 8-NPU sharding, and checkpoint without relaxing science. Beyond that retain failures/logs. Formal scores require completion/coverage/audit. All pre-merger state, weights, and answers remain unchanged.', '',
+            'Use resume to restart an incomplete controller while retaining existing jobs. Controller/stage logs: artifacts/compression_lab_v2/column_tree_post_full_20261108/.']
     tmp = REPORT.with_name(REPORT.name + f'.{os.getpid()}.tmp')
     tmp.write_text('\n'.join(doc) + '\n')
     tmp.replace(REPORT)

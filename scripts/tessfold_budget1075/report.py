@@ -205,51 +205,51 @@ def write_report():
     save(BASE / 'training_diagnostics.json', dict(time=now(), runs=train))
     graphs(train)
     final = load(BASE / 'final_audit.json')
-    doc = ['# 原生8B：10%与75%保留率完整训练和评测', '',
-           f'更新时间（UTC）：{now()}。状态：**' + ('全部训练、正式评测及审计完成' if final.get('all_checks_passed') else '进行中，未完成项不填最终分数') + '**。', '',
-           '本轮响应补齐10%/75%预算的请求，对标上一轮25%/50%协议。原模型是完整原生Qwen3-VL-8B-Instruct，使用其自己的视觉塔、merger、DeepStack及MRoPE；不是MonkeyOCRv2-Und换LLM。所有基模参数冻结，仅训练新增空间压缩器。', '',
-           '## 入口及产物', '',
-           '- 状态：`.venv/bin/python -m scripts.tessfold_budget1075.controller status`',
-           '- 继续控制器：`.venv/bin/python -m scripts.tessfold_budget1075.controller resume`',
-           '- 重建本报告：`.venv/bin/python -m scripts.tessfold_budget1075.controller report`',
-           '- 最终审计：`.venv/bin/python -m scripts.tessfold_budget1075.controller audit`',
-           '- [实验登记](../artifacts/tessfold_acceleration_20261115/budget1075/registration.json) · [控制器状态](../artifacts/tessfold_acceleration_20261115/budget1075/controller_state.json)',
-           '- [上一轮最终结果](TESSFOLD_FINAL_RESULTS.md) · [原生8B结构](TESSFOLD_NATIVE8B_METHOD.md)', '',
-           '## 统一协议与选择规则', '',
-           '20,000训练QA/16,731图，4 epochs；固定56QA dev，正式23,565QA/6,494图，文档互斥。种子20261115；完整词表teacher greedy公共回答前缀KL，不加entropy、不以gold训练。P位于原生merger后，对最终4096维特征及3条DeepStack分支同步凸组合，保留代表位置原MRoPE。', '',
-           'AdamW、weight_decay=0、clip=5、10%线性warmup后cosine到0.1LR。先用原固定512题训练子集跑3epoch先导；按预登记顺序先LR3e-4，再1e-4、1e-3，只在先导失败时尝试下一项。Column若三项均失败，再试与上一轮StableColumn50相同的固定detail划分变体（LR1e-3、batch16），显式标记结构差异。标准配置batch32。第一次通过先导门槛后，从相同种子的初始化重新训练20k×4epochs，不从先导权重接续。', '',
-           '先导及full候选门槛沿用前轮：dev KL比initial至少下降5%，生成宏分至少提高0.25pp；若initial已接近teacher，则沿用teacher饱和例外。full在合格epoch中按dev宏分最高、再按KL最低选模型；没有合格epoch则正式评测initial，并保留完整训练负结果。正式测试不用于选模型、调学习率或追选epoch。', '',
-           '固定512文档/2404QA初始P对照沿用上一轮登记。正式生成greedy、短答案、自然EOS、cap256；训练teacher前缀cap64（原缓存35/20000条截断的限制不变）。DeepForm/KLC用DUE corpus F1，其他任务用原生指标，八任务等权；另存共享fieldEM口径。', '',
-           '## 实际先导与完整训练进度', '',
-           '|模型|先导选择|LR / batch|实际full更新数|full完成|dev选中epoch|',
+    doc = ['# Native 8B: Full Training and Evaluation at 10% and 75% Retention', '',
+           f'Updated (UTC):{now()}. Status: **' + ('All training, formal evaluation, and audits completed' if final.get('all_checks_passed') else 'In progress; no final scores reported for incomplete stages') + '**. ', '',
+           'This round adds 10%/75% budgets under the previous 25%/50% protocol. The backbone is complete native Qwen3-VL-8B-Instruct with its own visual tower, mergers, DeepStack, and MRoPE, not an LLM replacement in MonkeyOCRv2-Und. All backbone parameters are frozen; only the new spatial compressor is trained.', '',
+           '## Entry Points and Outputs', '',
+           '- Status: `.venv/bin/python -m scripts.tessfold_budget1075.controller status`',
+           '- Resume controller: `.venv/bin/python -m scripts.tessfold_budget1075.controller resume`',
+           '- Rebuild this report: `.venv/bin/python -m scripts.tessfold_budget1075.controller report`',
+           '- Final audit: `.venv/bin/python -m scripts.tessfold_budget1075.controller audit`',
+           '- [Experiment registration](../artifacts/tessfold_acceleration_20261115/budget1075/registration.json) · [Controller status](../artifacts/tessfold_acceleration_20261115/budget1075/controller_state.json)',
+           '- [Previous-round final results](TESSFOLD_FINAL_RESULTS.md) · [Native 8B architecture](TESSFOLD_NATIVE8B_METHOD.md)', '',
+           '## Common Protocol and Selection Rules', '',
+           '20,000 training QA / 16,731 images, 4 epochs; 56 fixed development QA; 23,565 formal QA / 6,494 images, with document-disjoint splits. Seed 20261115. Full-vocabulary KL under a shared teacher-greedy response prefix; no entropy term or gold training. P is after native mergers and applies the same convex aggregation to final 4,096-dimensional features and all 3 DeepStack branches, retaining original representative MRoPE positions.', '',
+           'AdamW, weight_decay=0, clip=5; 10% linear warmup followed by cosine decay to 0.1 LR. Start with a 3-epoch pilot on the original fixed 512-question training subset. Try LR 3e-4, then 1e-4, then 1e-3 in preregistered order, advancing only after failure. If all three fail for Column, test the fixed-detail StableColumn variant used previously at 50% (LR 1e-3, batch 16), explicitly marking the structural change. Standard batch size is 32. After the first passing pilot, restart 20k × 4-epoch training from the same seeded initialization rather than its pilot weights.', '',
+           'Pilot/full eligibility follows the previous round: development KL must fall at least 5% from initial, and generation macro must rise at least 0.25 pp, retaining the teacher-saturation exception when initial is already close to teacher. Full selection maximizes development macro, then minimizes KL among eligible epochs. With no eligible epoch, formal evaluation uses initial and retains the full-training negative result. Tests select neither models, learning rates, nor epochs.', '',
+           'Initial-P controls retain the earlier 512-document/2,404-QA registration. Formal generation is greedy, short-answer, natural-EOS, cap=256. Training teacher prefixes use cap=64; the existing 35/20,000 truncated-cache limitation remains. DeepForm/KLC use DUE corpus F1, others native metrics, with eight tasks equally weighted. Shared field-EM statistics are stored separately.', '',
+           '## Pilot and Full-Training Progress', '',
+           '|Model|Pilot selection|LR / batch|Actual full-training updates|Full training completed|Development-selected epoch|',
            '|---|---|---|---:|---|---|']
     for r in train:
         choice = state.get('pilot_choices', {}).get(r['id'], {})
         m = r['manifest']
-        label = ('StableColumn' if choice.get('stable') else r['id']) if choice else '先导中'
-        hyper = f'{m["lr"]:g} / {m["batch"]}' if m else '待确定'
-        doc.append(f'|{r["id"]}|{label} {choice.get("name", "")}|{hyper}|{r["steps"]}|{bool(r["complete"])}|{selected.get(r["id"], {}).get("stage", "待选")} |')
-    doc += ['', '### 所有先导尝试（保留失败结果）', '',
-            '|模型|先导目录|通过门槛|initial KL / macro|best KL / macro|', '|---|---|---|---|---|']
+        label = ('StableColumn' if choice.get('stable') else r['id']) if choice else 'Pilot running'
+        hyper = f'{m["lr"]:g} / {m["batch"]}' if m else 'Undetermined'
+        doc.append(f'|{r["id"]}|{label} {choice.get("name", "")}|{hyper}|{r["steps"]}|{bool(r["complete"])}|{selected.get(r["id"], {}).get("stage", "Pending selection")} |')
+    doc += ['', '### All Pilot Attempts, Including Failures', '',
+            '|Model|Pilot directory|Passed eligibility criterion|initial KL / macro|best KL / macro|', '|---|---|---|---|---|']
     for directory in sorted(BASE.glob('pilot*')):
         for path in sorted(directory.glob('*_r*/complete.json')):
             rr = load(path)
             initial, best = rr['initial'], rr.get('best')
-            fmt = lambda x: f'{x["kl"]:.4f} / {x["macro"]:.4f}' if x else '无合格epoch'
+            fmt = lambda x: f'{x["kl"]:.4f} / {x["macro"]:.4f}' if x else 'No eligible epoch'
             doc.append(f'|{path.parent.name}|{directory.name}|{rr["pilot_gate_passed"]}|{fmt(initial)}|{fmt(best)}|')
-    doc += ['', '## 每epoch loss、生成分数和梯度', '',
-            '|模型|epoch|dev完成|train KL|dev KL|dev宏分|norm p50|norm p99|裁剪频率|',
+    doc += ['', '## Per-Epoch Loss, Generation Scores, and Gradients', '',
+            '|Model|epoch|Development evaluation complete|train KL|dev KL|Development macro|norm p50|norm p99|Clipping frequency|',
             '|---|---:|---|---:|---:|---:|---:|---:|---:|']
     for r in train:
         for e in r['epochs']:
-            fmt = lambda v: '待完成' if v is None else f'{v:.4f}'
+            fmt = lambda v: 'Pending' if v is None else f'{v:.4f}'
             doc.append(f'|{r["id"]}|{e["epoch"]}|{e["complete"]}|{e["train_kl"]:.4f}|{fmt(e["dev_kl"])}|{fmt(e["dev_macro"])}|{e["norm_p50"]:.3f}|{e["norm_p99"]:.3f}|{e["clip_fraction"]:.1%}|')
     if (BASE / 'figures/training_curves.pdf').exists():
-        doc += ['', '[逐epoch训练/开发集曲线PDF](../artifacts/tessfold_acceleration_20261115/budget1075/figures/training_curves.pdf)',
-                '', '![训练曲线](../artifacts/tessfold_acceleration_20261115/budget1075/figures/training_curves.png)']
-    doc += ['', '## 正式全量任务分数：与25%/50%并列', '',
-            '旧预算数据直接引用上一轮已审计的固定模型，新增预算独立训练；StableColumn50为固定detail划分，与标准Column不同。每行23,565QA。', '',
-            '|模型|预算|DocVQA|InfoVQA|ChartQA|OCRBench|DeepForm F1|KLC F1|WTQ|DT-VQA|原生macro|',
+        doc += ['', '[Per-epoch training/development curves PDF](../artifacts/tessfold_acceleration_20261115/budget1075/figures/training_curves.pdf)',
+                '', '![Training curves](../artifacts/tessfold_acceleration_20261115/budget1075/figures/training_curves.png)']
+    doc += ['', '## Full Formal Task Scores Alongside the 25%/50% Budgets', '',
+            'Old budgets quote audited fixed models; new budgets train independently. StableColumn50 uses fixed-detail partitioning unlike standard Column. Each row has 23,565 QA.', '',
+            '|Model|Budget|DocVQA|InfoVQA|ChartQA|OCRBench|DeepForm F1|KLC F1|WTQ|DT-VQA|Native macro|',
             '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     previous = load(PARENT / 'qwen_formal/complete.json').get('native_metric_results', {})
     new_formal = completed('qwen_formal')
@@ -258,45 +258,45 @@ def write_report():
     for identity, ratio in [('REF', 1.), *[(model_id(k, r), r) for r in [.1, .25, .5, .75] for k in ['Column', 'Tree']]]:
         scores = (current if ratio in [.1, .75] else previous).get(identity)
         if not scores:
-            doc.append(f'|{identity}|{ratio:.0%}|' + '|'.join(['待完成'] * 9) + '|')
+            doc.append(f'|{identity}|{ratio:.0%}|' + '|'.join(['Pending'] * 9) + '|')
             continue
         stable_variant = identity == 'Column_r0.5' or bool(selected.get(identity, {}).get('allocation'))
         label = identity.replace('Column_', 'StableColumn_') if stable_variant else identity
         values = [scores['by_task'][t] for t in task_order] + [scores['macro']]
         doc.append(f'|{label}|{ratio:.0%}|' + '|'.join(f'{v:.4f}' for v in values) + '|')
     if new_formal:
-        doc += ['', '[新增预算完整分数及初始对照JSON](../artifacts/tessfold_acceleration_20261115/budget1075/qwen_formal/complete.json)', '',
-                '### 相同2404题：初始P与训练后P独立对照', '',
-                '下表只对应固定子集，不是全量测试宏分；95%CI仅用于共享fieldEM宏分。', '',
-                '|模型|初始原生macro|选中原生macro|改善pp|共享fieldEM改善95%CI|', '|---|---:|---:|---:|---|']
+        doc += ['', '[New-budget full scores and initial-control JSON](../artifacts/tessfold_acceleration_20261115/budget1075/qwen_formal/complete.json)', '',
+                '### Same 2,404 Questions: Independent Initial-P Versus Trained-P Comparison', '',
+                'This table describes a fixed subset, not the full-test macro; 95% CIs apply only to the shared field-EM macro.', '',
+                '|Model|Initial native macro|Selected native macro|Improvement (pp)|Shared field-EM improvement: 95% CI|', '|---|---:|---:|---:|---|']
         for identity, v in new_formal['initial_control_results']['comparisons'].items():
             ci = v['shared_fieldEM_task_stratified_document_bootstrap_95_ci']
             doc.append(f'|{identity}|{v["initial"]["native_macro"]:.4f}|{v["selected"]["native_macro"]:.4f}|{v["native_macro_delta"]:+.4f}|[{ci[0]:.4f}, {ci[1]:.4f}]|')
-    doc += ['', '## 完整部署速度与独立显存', '',
-            '沿用90题、每模型每模式3次。natural EOS及fixed64分开；同题重复先平均、以时延总和比计算加速，页面bootstrap10000次。内存另做1ms采样，不把采样耗时当作速度。所有计时包含processor、完整视觉塔及merger；P不节省前端。', '']
+    doc += ['', '## Full-Deployment Speed and Independent Memory Measurements', '',
+            'Use the same 90 questions, 3 repeats per model/mode. Natural EOS and fixed64 are separate. Average repeats within each question, then use the ratio of latency sums; bootstrap pages 10,000 times. Memory uses a separate 1 ms sampling pass whose overhead is not included in speed estimates. All timings include processor, full visual tower, and mergers; P does not save frontend computation.', '']
     stats = load(BASE / 'qwen_timing/statistics.json')
     if stats:
-        doc += ['|模型|模式|E2E加速|95%页面CI|TTFT加速|95%页面CI|', '|---|---|---:|---|---:|---|']
+        doc += ['|Model|Mode|E2E speedup|95% page-level CI|TTFT speedup|95% page-level CI|', '|---|---|---:|---|---:|---|']
         for v in stats['comparisons']:
             if v['stratum'] != 'all':
                 continue
             ci, ti = v['e2e_bootstrap_95_ci'], v['ttft_bootstrap_95_ci']
             doc.append(f'|{v["model"]}|{v["mode"]}|{v["e2e_speedup"]:.3f}×|[{ci[0]:.3f},{ci[1]:.3f}]|{v["ttft_speedup"]:.3f}×|[{ti[0]:.3f},{ti[1]:.3f}]|')
     else:
-        doc.append('时延尚未完成最终审计。')
+        doc.append('Final timing audit incomplete.')
     mem = load(BASE / 'qwen_memory/summary.json')
     if mem:
-        doc += ['', '|模型|全流程最大GiB|前端最大GiB|下游最大GiB|prefill采样均值GiB|视觉KV中位MiB|', '|---|---:|---:|---:|---:|---:|']
+        doc += ['', '|Model|Full-pipeline maximum (GiB)|Frontend maximum (GiB)|Downstream maximum (GiB)|Sampled prefill mean (GiB)|Median visual KV (MiB)|', '|---|---:|---:|---:|---:|---:|']
         for identity, v in mem['results'].items():
             doc.append(f'|{identity}|' + '|'.join(f'{v[k]:.4f}' for k in ['full_max_gib', 'front_max_gib', 'downstream_max_gib', 'prefill_mean_gib', 'visual_kv_median_mib']) + '|')
-    doc += ['', '## 实际作业与完成标志', '', '|阶段|Job ID|状态|', '|---|---|---|']
+    doc += ['', '## Actual Jobs and Completion Markers', '', '|Stage|Job ID|Status|', '|---|---|---|']
     for label, job in state.get('jobs', {}).items():
         doc.append(f'|{label}|{job["job"]}|{job["status"]}|')
-    doc += ['', f'最终审计通过：{bool(final.get("all_checks_passed"))}。', '',
-            '原始逐题结果：`artifacts/tessfold_acceleration_20261115/budget1075/qwen_formal/rows.rank*.jsonl`；每条含gold、prediction、score、generated_ids、token数和checkpoint。', '',
-            '本轮仍为每配置一个训练seed；固定dev仅56题。不同预算若采用StableColumn，必须区分结构差异；不能把预算变化全部解释为保留率的因果效应。未通过先导的候选不伪装成完成full；若没有任何候选通过，控制器会明确记录需处理的科学问题。已完成不等于接近teacher或实现预期加速。']
+    doc += ['', f'Final audit passed: {bool(final.get("all_checks_passed"))}. ', '',
+            'Raw per-question results: `artifacts/tessfold_acceleration_20261115/budget1075/qwen_formal/rows.rank*.jsonl`; each record includes gold, prediction, score, generated_ids, token counts, and checkpoint.', '',
+            'There is still one training seed per configuration and only 56 development questions. StableColumn at some budgets is a structural change; differences cannot be attributed entirely to retention. Candidates failing the pilot are not presented as completed full runs; if none passes, the controller records the unresolved scientific issue. Completion does not establish closeness to teacher or achievement of target speedups.']
     if state.get('scientific_attention'):
-        doc += ['', '需处理：`' + json.dumps(state['scientific_attention'], ensure_ascii=False) + '`']
+        doc += ['', 'Requires attention: `' + json.dumps(state['scientific_attention'], ensure_ascii=False) + '`']
     tmp = REPORT.with_suffix('.md.tmp')
     tmp.write_text('\n'.join(doc) + '\n')
     tmp.replace(REPORT)

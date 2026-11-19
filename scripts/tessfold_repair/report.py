@@ -25,33 +25,33 @@ def main():
  single_done=(BASE/'single/complete.json').exists();multi_done=(BASE/'multi/complete.json').exists()
  single=[r for p in (BASE/'single').glob('results.rank*.jsonl') for r in lines(p)] if single_done else []
  multi=[r for p in (BASE/'multi').glob('results.rank*.jsonl') for r in lines(p)] if multi_done else []
- doc=['# TessFold零重训系统重构、精度核验与效率实测','',f'更新UTC：{now()}。真实验证完成：{bool(val)}；单请求测量完成：{single_done}；多问题测量完成：{multi_done}。','',
- '**入口**：`.venv/bin/python -m scripts.tessfold_repair.suite status|resume|verify`；最终`.venv/bin/python -m scripts.tessfold_repair.report --require-complete`。','',
- '## 本次接口修复','',
- '本次使用独立版本 scripts/tessfold_repair，保留20261114失败实验及官方源码。仅在HF已准备好embeddings首轮输入后恢复真实input_ids；不使用伪造ID、不改变positions/mask/KV或权重。CPU小Qwen已复现原错误，并验证修复后的embeddings生成、原生生成、两题独立prefix及异常恢复。另修复缩图补丁被重复安装的问题。','',
- '## 实际工作范围','',
- '依据tessfold.md执行零重训重构；八个已训练seed20261105/epoch4的列/树checkpoint固定，模型权重全部冻结。历史16组、三seed及原效率数据保留，不覆写签名源码或删除负结果。仅优化推理工作与评测流程，不重训、不更换Qwen、不预设投稿或性能结果。','',
- '## 对参考方案的必要修正','',
- '1. 实数数学等价不等于浮点逐位相等。参考方案把FP32 softmax/GEMM改为BF16乘法累加，改变舍入；FP32 scatter也改变求和顺序。默认strict_dense保留原FP32 partition/softmax/GEMM，只删无用工作。实验性segmented_fp32/BF16分支单独记录，不能偷偷替换后继承旧分数。','',
- '2. 原代码已经有FP32二维积分图和最大堆，主要切点仍用局部NumPy sum/cumsum。提议换FP64积分图加二分搜索改变舍入、质量平局与切点；本轮候选独立比较原实现，不能让reference与candidate共用新分区器。没有证明或承诺JIT必然<0.8ms。','',
- '3. Hard读取是独立方法变体，不与原soft模型逐位等价；不以soft−hard区间跨零声称二者严格等效。现有Hard25%分数38.24只适用于其历史设置，不为新预算自动赋相同成绩。','',
- '4. Post-ViT方法无法节省已经发生的encoder峰值；端到端最高峰保留报告。新部署路径不先运行无用全长merger，压缩后释放raw/P/输入图像，再显式构造相同视觉embeddings传给原generate。独立验证这些生命周期变化没有改变答案。','',
- '5. 25%是视觉KV逻辑子段按实际K/N的比例，不是全KV/整卡显存/吞吐严格四倍。每页K按round取整，文本/答案KV不缩短，常驻权重不变。实际并发上限未做容量压测，不能以缓存比例替代实测吞吐。','',
- '6. 同页前缀缓存必须严格复用原prompt中视觉结束之前的固定因果前缀；不可把上一题或答案KV混入。原Qwen是decoder self-attention，不是独立视觉cross-attention。REF也获得相同的feature/KV复用权限；每题克隆只读cache并计时。前缀拆开执行的浮点内核可能不同，必须单独回归生成。','',
- '7. 本主实验保持官方UND/Qwen3-1.7B，以便与历史答案独立回归。用户20261115另授权考察更新的约7B Qwen；可选扩展的架构适配与环境检查单独报告，不混用主实验成绩。项目没有TeX原稿，提供独立实测表。','',
- '8. 旧固定64基线2532.14ms、T2502.28ms，差约29.86ms；参考文件所谓“仅省4.5ms”“64步250–300ms”与实际单位不符。不能据这些数字精准定位耗时来源。缩图固定64结果和T−M/T−A的CI此前已经存在，应该引用精确原记录，不重复捏造补测。','',
- '## 已完成CPU独立测试','',
- '另行近均匀能量审计已找到FP64分区反例（见fp64_partition_audit.json），所以下列350个普通案例的零差异不代表严格等价。','',f'切分候选案例{cpu.get("partition_cases",0)}，其中FP64候选与原FP32不一致{cpu.get("integral_candidate_mismatches",0)}例；有限案例无反例不构成普遍逐位等价证明。','',
- '|方法|保留率|严格路径逐位一致|FP32分段逐位一致|BF16分段逐位一致|BF16最大绝对差|','|---|---:|---|---|---|---:|']
+ doc=['# TessFold Inference-Only Refactoring: Accuracy Validation and Efficiency Measurements','',f'Updated (UTC): {now()}. Actual validation completed: {bool(val)}; single-request measurements completed: {single_done}; multi-question measurements completed: {multi_done}. ','',
+ '**Entry point**: `.venv/bin/python -m scripts.tessfold_repair.suite status|resume|verify`; final `.venv/bin/python -m scripts.tessfold_repair.report --require-complete`. ','',
+ '## Interface Repairs in This Version','',
+ 'The separate scripts/tessfold_repair version retains the failed 20261114 experiments and official sources. It restores real input_ids only after HF prepares the embedding-prefill inputs, without fabricated IDs, position/mask/KV changes, or weight updates. Tiny CPU Qwen reproduces the original failure and verifies repaired embedding generation, native generation, two independent prefixes, and exception restoration. Duplicate installation of the resize patch is also repaired.','',
+ '## Scope of the Work','',
+ 'Follow tessfold.md with an inference-only refactor and no retraining. Eight Column/Tree checkpoints at seed 20261105 / epoch 4 are fixed, with all weights frozen. The historical 16 runs, three-seed studies, and efficiency data remain; signed sources and negative results are not overwritten. Only inference work and evaluation procedures are optimized: no retraining, Qwen replacement, or assumed submission/performance outcome.','',
+ '## Necessary Corrections to the Reference Proposal','',
+ '1. Equivalence over real arithmetic does not imply bitwise floating-point equality. Replacing FP32 softmax/GEMM with BF16 multiplication and accumulation changes rounding; FP32 scatter also changes reduction order. Default strict_dense retains the original FP32 partition/softmax/GEMM and removes only unused work. Experimental segmented_fp32/BF16 paths are reported separately and cannot silently inherit earlier scores.','',
+ '2. The original implementation already uses an FP32 2D integral image and a max-heap; split locations still use local NumPy sum/cumsum. An FP64 integral image with binary search changes rounding, mass ties, and cut positions. Candidates are compared independently against the original; reference and candidate must not share the new partitioner. JIT latency below 0.8 ms has neither been proved nor promised.','',
+ '3. Hard readout is a separate variant, not bit-exact to soft. A soft−hard CI crossing zero does not prove equivalence. Historical Hard25% score 38.24 applies only to its setting and cannot be assigned to new budgets.','',
+ '4. Post-ViT compression cannot save an already incurred encoder peak; report full E2E peak. The new path skips unused full-length merger work, releases raw/P/input-image tensors after compression, then supplies identical visual embeddings to original generate. Independently verify that lifecycle changes preserve answers.','',
+ '5. A 25% visual-KV retention fraction describes the logical visual segment at actual K/N, not fourfold improvement in all KV, device memory, or throughput. Per-page K is rounded; text/answer KV and resident weights are unchanged. Maximum concurrency was not stress-tested, so cache ratios cannot replace measured throughput.','',
+ '6. Same-page prefix caching must reuse exactly the fixed causal prefix of the original prompt up to the visual boundary; it must not include a previous question or answer\'s KV. Qwen uses decoder self-attention, not a separate visual cross-attention module. REF receives the same feature/KV reuse permissions. Clone the read-only cache and include this cost for each question. Splitting prefix execution may change floating-point kernels, so generation must be regressed separately.','',
+ '7. Keep official UND/Qwen3-1.7B in the main experiment for independent regression against historical answers. The separately requested newer ~7B-class Qwen extension has its own architecture/environment report and does not share main scores. No TeX source is provided; measured tables are separate.','',
+ '8. The earlier fixed-64 baseline was 2532.14 ms versus T at 2502.28 ms, a difference of about 29.86 ms. The reference document\'s claims of “only 4.5 ms saved” and “250–300 ms for 64 steps” do not match the actual units and cannot identify the latency source precisely. Fixed-64 resize results and T−M/T−A CIs already exist; cite the exact records instead of inventing duplicate measurements.','',
+ '## Completed Independent CPU Tests','',
+ 'A separate near-uniform-energy audit found an FP64 partition counterexample (fp64_partition_audit.json). Zero differences in these 350 ordinary cases therefore do not prove strict equivalence.','',f'Partition-candidate cases{cpu.get("partition_cases",0)}, including FP64-versus-original-FP32 mismatches {cpu.get("integral_candidate_mismatches",0)} cases; absence of a counterexample in finite tests does not prove universal bitwise equivalence.','',
+ '|Method|Retention fraction|Strict-path bit-exact|FP32 segmented bit-exact|BF16 segmented bit-exact|BF16 maximum absolute difference|','|---|---:|---|---|---|---:|']
  for r in cpu.get('feature_tests',[]):doc.append(f'|{r["kind"]}|{r["ratio"]:.0%}|{r["strict_bit_exact"]}|{r["segmented_fp32_equal"]}|{r["segmented_bf16_equal"]}|{r["segmented_bf16_max_error"]:.8f}|')
- doc+=['','测试不是参考md中仅print误差：strict对原生成器P和输出执行torch.equal断言。原group顺序、官方2×2block与逆置换、代表argmax最小序号、稳定排序、round-to-even长度和原energy乘法结合次序均保留。','',
- '## 真实UND独立验证门槛','',
- '固定56题验证×两方法×四预算共448例。逐例原生成器对新strict的P/PH/merger输出逐位相等，并与历史验证student_ids对比；另完整重新执行无多余merger、释放中间张量的clean生成路径，比较生成token。分段候选和FP64切分只作诊断，失败不修改旧权重或参数。每rank另取真实同页两题测试REF/Column/Tree独立prefixcache与原全prompt输出，检查基础cache不被题目或答案污染。','']
- if val:doc += [f'实际完成：{val["cases"]}例，strict通过：{val["strict_passed"]}。分段候选不一致：`{val["candidate_mismatches"]}`；FP64切分不一致{val["integral_partition_mismatches"]}；prefix缓存token不一致{val["prefix_reuse_token_mismatches"]}。','']
- else:doc+=['真实验证尚未完成，不提前声明已通过。','']
- doc+=['## 单请求效率协议','',
- '相同90题/三层各30，主25%次50%，15个方法预算配置（REF及各预算T/C原dense、新strict、TreeHard、R、S），自然EOS/cap256及固定64各三轮；共8100条时延记录。另每配置每题一次独立1ms内存采样，共1350条，不把采样线程引入的耗时混入主时延表。每模型两题cap16预热，JIT若存在须预热不计首次编译。','',
- '实际硬件Ascend，使用torch.npu.Event与同步wall双计时；CPU分区/传输成本看wall，事件包含stream空闲等待，不能把device event当纯kernel或遗漏CPU。记录processor、encoder、压缩+merger、prefill、decode、TTFT、postencoder TTFT、端到端总延迟、KV实际逻辑字节和阶段allocated/reserved。含同步/钩子测量对所有方法一致，不能称完全无扰动服务吞吐。S按原内部剪枝流程给decoder总段，不伪造独立prefill。','']
+ doc+=['','Unlike printing errors alone, strict tests assert torch.equal on original P/outputs. Retain group ordering, official 2×2 block/inverse permutation, smallest-index argmax ties, stable sorting, ties-to-even length, and energy-operation grouping.','',
+ '## Independent Validation Gates on the Actual UND Backbone','',
+ '56 fixed validation questions × 2 methods × 4 budgets give 448 cases. For every case, original-generator and strict P/PH/merger outputs must be bit-exact, with generated IDs also compared against historical student_ids. A clean path independently removes redundant merger work and releases intermediates, then compares generation. Segmented and FP64-partition candidates are diagnostic only; failures do not modify old weights or parameters. Each rank also tests two real same-page questions under REF/Column/Tree, comparing independent prefix-cache and full-prompt output and checking that questions/answers do not contaminate the base cache.','']
+ if val:doc += [f'Actually completed: {val["cases"]} cases; strict checks passed: {val["strict_passed"]}. Segmented candidate mismatches: `{val["candidate_mismatches"]}`; FP64 partition mismatches: {val["integral_partition_mismatches"]}; prefix-cache token mismatches {val["prefix_reuse_token_mismatches"]}. ','']
+ else:doc+=['Actual validation incomplete; no advance pass claim.','']
+ doc+=['## Single-Request Efficiency Protocol','',
+ 'Same 90 questions, 30 in each of three strata; primary budget 25%, secondary 50%. Fifteen method/budget configurations include REF and T/C original dense, new strict, TreeHard, R, S at each budget. Natural EOS/cap=256 and fixed64 each have 3 repeats, giving 8,100 timing records. A separate 1 ms memory pass runs once per configuration/question, 1,350 records; sampling-thread overhead is excluded from primary timing. Warm up with two cap=16 questions/model, including JIT warmup and excluding first compilation.','',
+ 'Actual hardware is Ascend, with torch.npu.Event and synchronized wall timing. Wall time captures CPU partition/transfer costs; events can include stream idle waits and are not pure kernel times. Record processor, encoder, compression+merger, prefill, decode, TTFT, post-encoder TTFT, E2E latency, logical KV bytes, and stage allocated/reserved memory. Synchronization/hooks are identical across methods, not unperturbed serving throughput. S follows its internal-pruning path and reports total decoder time without inventing a separate prefill measurement.','']
  summaries=[];regression=[]
  if single_done:
   assert len(single)==9450
@@ -64,9 +64,9 @@ def main():
   save(BASE/'single/summary.json',dict(rows=summaries,strict_generation_regression_passed=True))
   with (BASE/'single/latency_summary.csv').open('w') as f:
    fields=[k for k in summaries[0] if not k.startswith('phase_')];w=csv.DictWriter(f,fieldnames=fields,extrasaction='ignore');w.writeheader();w.writerows(summaries)
-  doc+=['|方法|保留率|模式|TTFT p50 ms|Post-encoder TTFT p50 ms|E2E p50 ms|压缩+merger wall p50 ms|峰值GiB|视觉KV MiB|','|---|---:|---|---:|---:|---:|---:|---:|---:|']
+  doc+=['|Method|Retention fraction|Mode|TTFT p50 ms|Post-encoder TTFT p50 ms|E2E p50 ms|Compression+merger wall p50 (ms)|Peak (GiB)|Visual KV (MiB)|','|---|---:|---|---:|---:|---:|---:|---:|---:|']
   for r in summaries:
-   kv='未独立测得' if r['visual_kv_mib'] is None else f'{r["visual_kv_mib"]:.2f}'
+   kv='Not measured independently' if r['visual_kv_mib'] is None else f'{r["visual_kv_mib"]:.2f}'
    doc.append(f'|{r["method"]}|{r["ratio"]:.0%}|{r["mode"]}|{r["ttft_p50_ms"]:.2f}|{r["post_encoder_ttft_p50_ms"]:.2f}|{r["e2e_p50_ms"]:.2f}|{r["phase_wall_medians_ms"]["compression_and_merger"]:.2f}|{r["peak_allocated_max_gib"]:.4f}|{kv}|')
   # Exactstrata are fixed from originaltiming sample lengths, not chosen by speed.
   timing=lines(BASE/'timing_rows.jsonl');ordered=sorted(timing,key=lambda r:(r['original_tokens'],r['id']));strata={r['id']:['short','medium','long'][i//30] for i,r in enumerate(ordered)}
@@ -82,10 +82,10 @@ def main():
   for r in summaries:
    if r['mode']=='natural_eos':tex.append(f"{r['method'].replace('_', chr(92)+'_')} & {100*r['ratio']:.0f}\\% & {r['ttft_p50_ms']:.2f} & {r['post_encoder_ttft_p50_ms']:.2f} & {r['e2e_p50_ms']:.2f} \\\\")
   tex += [r'\bottomrule',r'\end{tabular}'];(BASE/'single/measured_table.tex').write_text('\n'.join(tex)+'\n')
- else:doc+=['单请求正式测量尚未完成，不填预期0.XX毫秒或预设加速倍数。']
- doc+=['','## 同页多问题公平缓存协议','',
- '固定24张至少有10个不同问题的真实页，K=1/2/5/10取同一10题序列前K题；不重复问题凑K。只有DocVQA/InfoVQA/WTQ/OCRBench有足够10问页，此子集存在任务偏移，不称八任务完整泛化。对REF、Column、Tree均给cold、feature_cache、prefix_cache三场景；若prefix试验token不一致，则整组prefix场景弃用并报告，仍测feature_cache。','',
- 'cold每题独立图像encoder；featurecache整页缓存H，REF/Column还缓存对齐特征，Tree逐题重算问题相关压缩；prefixcache REF/Column缓存视觉因果前缀，Tree每题重新构建问题相关视觉前缀。前缀克隆和各题processor计时，首次摄入按(摄入+前K题时间)/K摊销；不把跨题答案KV当可复用视觉前缀。所有方法共享同等前端缓存权利。','']
+ else:doc+=['Formal single-request timing incomplete; do not report expected 0.XX ms or assumed speedups.']
+ doc+=['','## Fair Caching Protocol for Same-Page Questions','',
+ 'Use 24 fixed real pages with at least 10 distinct questions each. K=1/2/5/10 uses prefixes of the same ten-question sequence, not duplicate questions. Only DocVQA/InfoVQA/WTQ/OCRBench provide enough such pages, so this shifted subset is not full eight-task generalization. REF, Column, and Tree each receive cold, feature_cache, and prefix_cache scenarios. A prefix-token mismatch invalidates that entire prefix scenario and is reported; feature_cache evaluation continues.','',
+ 'cold runs an independent image encoder per question. featurecache caches full-page H, with REF/Column also caching aligned features; Tree recomputes question-dependent compression. prefixcache reuses the visual causal prefix for REF/Column, while Tree reconstructs its question-dependent prefix. Prefix cloning and per-question processing are timed; initial ingestion is amortized as (ingestion + time for first K questions)/K. Cross-question answer KV is never treated as reusable visual prefix. All methods receive equal frontend-cache permissions.','']
  if multi_done:
   grouped=collections.defaultdict(list)
   for r in multi:
@@ -97,9 +97,9 @@ def main():
    orig=reference[(r['page'],r['method'],r['repeat'])]
    mismatch+=sum(a['generated_ids']!=b['generated_ids'] for a,b in zip(orig['queries'],r['queries']))
   save(BASE/'multi/summary.json',dict(rows=stats,cache_generation_mismatches=mismatch,exact_on_measured_cohort=mismatch==0))
-  doc+=['|方法|缓存场景|K|平均ms/题（含首次摄入）|中位ms/题|实测queries/s|','|---|---|---:|---:|---:|---:|']
+  doc+=['|Method|Caching scenario|K|Mean ms/question (including initial ingestion)|Median ms/question|Measured queries/s|','|---|---|---:|---:|---:|---:|']
   for r in stats:doc.append(f'|{r["method"]}|{r["scenario"]}|{r["k"]}|{r["mean_ms_per_query"]:.2f}|{r["median_ms_per_query"]:.2f}|{r["queries_per_second"]:.2f}|')
-  doc += ['',f'对cold逐题token回归不一致次数：{mismatch}。非零时不能声称缓存Bit-Exact。','']
+  doc += ['',f'Token-regression mismatches against cold execution: {mismatch}. Nonzero counts prohibit a bit-exact cache claim.','']
   try:
    import matplotlib;matplotlib.use('Agg');import matplotlib.pyplot as plt
    fig,ax=plt.subplots(figsize=(6,3.5))
@@ -109,11 +109,11 @@ def main():
    for ext in ['pdf','png']:fig.savefig(BASE/'multi'/f'amortization.{ext}',dpi=170)
    plt.close(fig)
   except ImportError:pass
- else:doc+=['多问题正式测量尚未完成，不能宣称近4倍吞吐。']
- doc+=['','## FLOPs与论文表述边界','',
- 'FLOPs只能称解析估计：原merger线性部分约2N(768²+768×2048)，compressed约以实际M/N缩放。Qwen投影/MLP按总序列L=M+文本前缀缩放；注意力因果项近L²，但含文本、层、mask、内核和生成，不是全部计算严格r²。S首层原N，后27层K。当前没有kernel FLOP硬件counter，不把解析值写成实测。','',
- '所有历史负结果保留，新的优化/缓存只在对应部署场景说明。未达到sub-ms或cache优势时如实写明；不删除“旧实现稠密P”或6.414GiB历史事实，而给出旧实现→新实现的版本化对照。完整源清单/固定数据/权重SHA见登记，待完成时不把计划当结果。','',
- f'当前阶段：{state.get("stages",{})}。','[登记](../artifacts/tessfold_system_repair_20261115/registration.json) · [CPU测试](../artifacts/tessfold_system_repair_20261115/cpu_equivalence.json) · [真实验证](../artifacts/tessfold_system_repair_20261115/validation/) · [旧精确统计](COMPRESSION_SUPPLEMENT_STATISTICS.md)。']
+ else:doc+=['Formal multi-question timing incomplete; near-fourfold throughput is not established.']
+ doc+=['','## FLOP Estimates and Manuscript Claim Boundaries','',
+ 'FLOPs are analytical estimates only. The original merger\'s linear terms are approximately 2N(768²+768×2048), scaled by actual M/N after compression. Qwen projection/MLP costs scale with total length L=M+text prefix; the causal attention term is approximately L², but text, layers, masks, kernels, and generation prevent all computation from scaling exactly as r². S uses original N in its first layer and K in the remaining 27. No hardware kernel-FLOP counter is used; analytical values are not measurements.','',
+ 'Retain all negative history and specify deployment scenarios for new optimization/caching. Report missed sub-ms/cache targets rather than deleting old dense-P or 6.414-GiB observations; show versioned comparisons. Registrations pin sources/data/weights; plans are not outcomes.','',
+ f'Current stage: {state.get("stages",{})}. ','[Registration](../artifacts/tessfold_system_repair_20261115/registration.json) · [CPU tests](../artifacts/tessfold_system_repair_20261115/cpu_equivalence.json) · [Actual validation](../artifacts/tessfold_system_repair_20261115/validation/) · [Previous exact statistics](COMPRESSION_SUPPLEMENT_STATISTICS.md). ']
  REPORT.write_text('\n'.join(doc)+'\n')
  save(BASE/'summary.json',dict(time=now(),validation=bool(val),single=single_done,multi=multi_done))
  if a.require_complete:assert val and single_done and multi_done

@@ -1,68 +1,48 @@
-# 源码保真与复现边界
+# Source Fidelity and Reproducibility Scope
 
-## 保留的核心
+## Retained method implementations
 
-`vqa/` 中的方法实现来自工作目录的当前版本。原生 `NativeQwen` 新增可选 `model_path`，
-并支持 `TESSFOLD_NATIVE_MODEL`；官方 UND 的默认模型路径新增 `TESSFOLD_UND_MODEL`。
-没有改变这些类中的网络结构、分区、softmax、P@X、四分支压缩或 MRoPE 公式。
-源文件整理前的校验值见 `EXTRACTED_SOURCE_MANIFEST.json`。这是源码来源记录，不是实验结果。
-少量旧工程入口中的个人绝对路径已改成相对路径或 `DATASET_ROOT`，不改变方法计算。
+The implementations in `vqa/` were copied from the current working version. Native `NativeQwen` additionally accepts `model_path` and `TESSFOLD_NATIVE_MODEL`; the official UND wrapper accepts `TESSFOLD_UND_MODEL` as its default model-path override. These changes do not alter the network architecture, partitions, softmax, P@X, four-branch compression, or MRoPE formulas.
 
-`scripts/` 保留原训练、评测、诊断与运行脚本及其本地依赖。打包/迁移归档脚本和
-与模型训练无关的图形素材生成脚本不在本源码包内；原数据/模型实现使用公开来源下载。
+Pre-adjustment source checksums are recorded in `EXTRACTED_SOURCE_MANIFEST.json`. This is source provenance metadata, not experimental output. A small number of historical entry points use relative paths or `DATASET_ROOT` in place of personal absolute paths; their method computations are unchanged.
 
-## 新增的可移植入口
+`scripts/` retains original training, evaluation, diagnostic, and execution programs together with their local dependencies. Archive-packaging and migration scripts, and illustration-generation scripts unrelated to training, are excluded. Original data and model implementations are obtained from public sources.
 
-`tessfold/` 是独立运行层：从明确配置加载数据与模型，不读取旧 checkpoint、
-旧预测、`selected_runs.json` 或历史完成标志作为启动前提。
+## Portable interface
 
-统一入口的训练设置包括：
+`tessfold/` is a separate execution layer. It loads models and data from explicit configuration, without requiring historical checkpoints, predictions, `selected_runs.json`, or completion markers to exist beforehand.
 
-- teacher greedy 公共前缀上的完整词表 KL；无 gold CE 和行熵；
-- 全主干冻结，只更新生成器；AdamW、warmup/cosine、裁剪前范数记录；
-- 原生任务指标按任务等权宏平均；DeepForm/KLC 用 DUE corpus F1；
-- 先导合格后 fresh full init；开发集固定门槛选模；正式测试不选模；
-- 同种子逐 epoch 洗牌；DDP 不等长末批使用零权重补齐，真实样本等权；
-- checkpoint 保存 optimizer 和全局更新步；根据 seed+epoch 重建数据次序，
-  根据更新步重建 LR。当前路由器没有 dropout，分区为确定性计算；
-- resume 严格核对代码、配置、模型实际字节、数据、图片 hash 和 world size；
-- 缓存命名空间包含模型与实现 hash；问题与图像内容决定 teacher key。
+Its training protocol includes:
 
-`cache_logits=false` 默认不落盘完整词表概率，减少巨大缓存；每次重算对应 teacher
-前向。设为 true 可换取计算时间，但占用大量磁盘。特征缓存也可以关闭。
-这些都是新入口的显式工程选择，不改变其 KL 定义。
+- Full-vocabulary KL under a teacher-generated greedy response prefix, without gold cross-entropy or row entropy.
+- A frozen backbone and trainable generator, AdamW, warmup/cosine scheduling, and pre-clipping gradient-norm logging.
+- An equally weighted macro average of native task metrics; DeepForm/KLC use DUE corpus F1.
+- Fresh full-training initialization after a successful pilot, fixed development-set eligibility criteria, and no test-based selection.
+- Per-epoch shuffling with a fixed seed. Distributed short batches use zero-weight padding so real examples have equal weight.
+- Checkpoints containing optimizer state and global update count. Data order is reconstructed from seed and epoch; learning rate is reconstructed from the update count. Current routers have no dropout and use deterministic partition computations.
+- Strict resume checks on code, configuration, actual model bytes, manifests, image hashes, and world size.
+- Cache namespaces derived from model and implementation hashes; teacher keys derived from the question and image content.
 
-## 与历史脚本的实际差异
+By default, `cache_logits=false` avoids storing full-vocabulary probabilities and recomputes teacher forward passes. Setting it to true trades disk space for compute. Feature caching can also be disabled. These explicit execution choices do not change the KL definition.
 
-新入口不是所有旧脚本的同名替代：
+## Differences from historical scripts
 
-1. 旧 UND 完整实验有固定 epoch 选择和 field-EM 统计；新入口统一为开发集门槛和
-   原生 DUE F1，所以数值不能直接冒充旧实验。
-2. 原生 8B 历史多配置训练可同时划分 HCCL 子组；新入口一次配置一个生成器，
-   支持单设备或 DDP。末批显式纠正重复/不等长样本权重。
-3. 原生旧脚本可能复用已有短答案预测缓存；新入口重新生成 teacher，不依赖旧结果。
-4. 新入口 formal 前向记录共享前端后的诊断时长，**不构成公平的完整部署速度评测**。
-   要复现 TTFT、E2E、独立显存、固定 64 token 或真实 batch，使用原计时/内存脚本，
-   并重建相应登记与固定请求集合。不得将这里的诊断时长用于论文加速结论。
-5. 原控制器引用的实验注册、缓存和权重不随源码分发。没有附带结果不意味着它们已经重建。
+The portable runner is not a drop-in replacement for every historical protocol:
 
-## 当前验证范围
+1. Earlier full UND experiments used fixed-epoch selection and field-level exact-match statistics. The portable runner uses development-set eligibility and native DUE F1; its numbers must not be presented as results of the earlier protocol.
+2. Historical native 8B training could split one allocation into HCCL subgroups for multiple configurations. The portable runner trains one configuration at a time, on one device or with DDP, and explicitly corrects short-batch sample weighting.
+3. Original native scripts could reuse existing short-answer prediction caches. The portable runner generates teachers afresh and does not depend on old results.
+4. The formal forward path records diagnostic durations after a shared visual frontend. **These are not fair full-deployment speed measurements.** To reproduce TTFT, end-to-end latency, independent memory measurements, fixed-64-token generation, or real batching, use the original timing/memory scripts and regenerate their registrations and fixed request sets. Do not use the portable diagnostics to support paper-level speedup claims.
+5. Historical registrations, caches, and weights referenced by controllers are not distributed with the source. Their absence must not be interpreted as successful reconstruction.
 
-回归检查覆盖分区的参考一致性、全部四种保留率及 identity、凸组合、梯度、
-末批 DDP 权重公式、数据内容隔离、开发集门槛，以及合成冻结 decoder 的
-pilot/full/恢复/独立评测链路。合成测试的输出保存在测试临时目录，不作为 VQA 结果。
-另执行双进程 Gloo 的训练/恢复/评测技术检查；中断恢复测试会在提交一个 epoch
-更新后主动中断，并逐参数核对恢复结果与不中断训练完全一致。
+## Validation performed during source preparation
 
-本地检查使用单独 venv，通用 CPU tensor 依赖只读复用已有 CPU venv；
-项目本身按 editable 安装。CI 文件定义了从公开依赖重新安装的 CPU 检查，
-但本次没有在 GitHub 执行 CI，也没有重新下载/训练真实完整主干。
-`pip check` 还指出已有 CPU 环境缺少 qwen-vl-utils 声明的视频依赖 `av`；
-补装时 PyPI 文件下载超时，备用镜像也未连接成功。图像路由与上述 26 项检查
-不依赖视频解码，已执行通过；这不等于本机完成了从零安装全部依赖的验证。
-正常全量安装时 pip 会通过 qwen-vl-utils 的依赖声明安装 `av`。
-本地测试 venv 与构建产物在整理完成后清理，不随源码目录保留。
+Regression tests cover reference partition agreement, all four retention fractions and the identity case, convexity, gradients, distributed short-batch weighting, image-content isolation, development-set eligibility, and a pilot/full/resume/evaluation cycle using a synthetic frozen decoder. Synthetic outputs are written to temporary test directories and are not VQA results.
 
-模型加载使用上游代码（UND `trust_remote_code=True`），请从锁定来源下载。
-上游模型与数据不可达、不同 GPU/NPU 内核和浮点累加顺序会影响复现；
-源码构建成功和单元测试通过并不保证论文指标相同。
+A two-process Gloo training/resume/evaluation check was also performed. A recovery test deliberately interrupts training after committing an epoch update and verifies every recovered parameter against uninterrupted training.
+
+Local validation used a separate venv with read-only access to an existing CPU tensor environment, and an editable installation of this project. The CI configuration specifies a fresh CPU installation from public dependencies. GitHub CI was not run during this preparation, and real full backbones were not downloaded or retrained.
+
+`pip check` identified a missing `av` video dependency declared by qwen-vl-utils. Installing it timed out on PyPI, and the fallback mirror was also unreachable. Image-routing tests and the 26 checks above do not require video decoding and passed; this is not validation of a complete installation from scratch. A normal complete installation resolves `av` through qwen-vl-utils. The local test venv and build outputs were removed after preparation and are not distributed.
+
+Model loading uses upstream implementations, including `trust_remote_code=True` for UND; obtain these from the pinned sources. Unavailable models or datasets, different GPU/NPU kernels, and floating-point reduction order can affect reproducibility. A successful source build and passing unit tests do not establish identical paper metrics.

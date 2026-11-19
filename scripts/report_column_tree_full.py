@@ -12,7 +12,7 @@ from scripts.column_tree_full_suite import ROOT, BASE, SUITE, REGISTRATION, STAT
 from vqa.benchmark_metrics import native_score
 
 VARIANTS = ['initial', 'trained', 'mean', 'selection', 'cell_mean', 'cell_selection']
-LABEL = {'col_adaptive': '自适应列划分', 'quadtree_question': '问题条件空间树'}
+LABEL = {'col_adaptive': 'Adaptive column partitioning', 'quadtree_question': 'Question-conditioned spatial tree'}
 REPORT = ROOT / 'docs/COLUMN_TREE_FULL_COMPARISON.md'
 
 
@@ -236,70 +236,70 @@ def main():
             browser(record)
         plot(record, info)
     fmt = lambda x, n=2: '—' if x is None else f'{x:.{n}f}'
-    doc = ['# 自适应列划分与问题条件空间树：全量训练对照', '',
-           f'更新UTC：{now()}。正式结果已完成且审计通过 {len(results)}/8 组；其中2组历史复用，6组本轮新增。', '',
-           '**入口**：状态/更新报告 `.venv/bin/python -m scripts.column_tree_full_suite status`；中断恢复 `.venv/bin/python -m scripts.column_tree_full_suite resume`；最终核验 `.venv/bin/python -m scripts.report_column_tree_full --require-complete`。', '',
-           '## 实验设计与纠正', '',
-           '本轮在token保留率10%、25%、50%、75%比较col_adaptive与quadtree_question，全部固定pre-merger：encoder H → PH → 原始merger → Qwen。列方案不使用问题计算P；问题条件树使用当前问题前64个token的冻结Qwen输入词embedding。代码里的树是矩形递归二分，非标准四子节点quadtree。', '',
-           '**历史25%全量模型是global_topk，不是问题条件树。** 因此除用户明确要求的列方案4组和树75%外，本次补齐缺失树25%，形成2×4完整对照；旧树10%/50%权重与逐题结果原样保留。历史global_topk只单列参考，绝不冒充树25%。', '',
-           '本轮由用户直接指定实验，不再套用原筛选准入门槛；没有追认历史确认通过，也不按正式分数选择架构、seed或checkpoint。原正式集合已被查看，本轮是固定benchmark扩展，不称为新的盲测。', '',
-           '## 数据、训练与评测配置', '',
-           '- 原20,000QA / 16,731图像，保持文件、样本顺序和逐epoch shuffle规则；不重新抽样、不做任务平衡。',
-           '- 原固定验证56QA/56图像、历史审计14QA/7图像。历史审计仅2图属于20k训练集，保持原集不变；全训练KL另按每epoch全部batch汇总。',
-           '- 正式评测严格复用23,565QA：DocVQA/InfoVQA取原val的对应任务，加原test的全部任务；不把未使用的原val任务混入。训练/验证/正式集按document_id核对无交集。',
-           '- 官方MonkeyOCRv2-B-Und encoder、原merger、Qwen3-1.7B全冻结，只训练P生成器；每组fresh初始化，seed20261105，无小规模权重warm start。',
-           '- 每组4epochs、625更新/epoch、共2500更新；AdamW LR3e-4、wd0、batch32、clip1；250步warmup，cosine至峰值LR的10%。8NPU，每rank累积4题，无padding。',
-           '- KL-only、T=1、teacher||student；教师自身greedy回答作共同前缀。训练教师与小验证生成cap64；正式greedy生成cap256。无行熵/列质量正则；不是decoder-free loss。',
-           '- 每25更新提交latest与optimizer；每epoch固定保存并验证，最终固定epoch4。正式逐题保留initial/trained/mean/selection/cell_mean/cell_selection六项，每组141,390条，不跨seed或压缩采样取平均。',
-           '- CPU使用.venv，NPU使用.venv-und；沿用已验证不可变cache读写修复，生成器、loss、原模型推理和scorer源码不变。正式评测8个独立worker，与旧14worker分片不同，但问题/生成设置一致。', '',
-           '正式分数为八任务原生指标等权宏平均（百分制）；DeepForm/KLC为字段exact，DT-VQA沿用既有scorer，不能当作论文官方文档级F1或统一榜单。单seed完整训练；图像bootstrap不表示训练seed方差。', '',
-           '[不可变实验登记、配置哈希与数据审计](../artifacts/compression_lab_v2/column_tree_full_20261108/registration.json) · [实时机器状态](../artifacts/compression_lab_v2/column_tree_full_20261108/state.json) · [逐组结果审计](../artifacts/compression_lab_v2/column_tree_full_20261108/audits/)。', '',
-           '## 八组训练与正式结果总表', '',
-           '|保留率|生成器|来源/阶段|训练更新|正式记录|teacher|initial|trained|teacher分数保留率|',
+    doc = ['# Adaptive Column Partitioning and Question-Conditioned Spatial Trees: Full-Training Comparison', '',
+           f'Updated (UTC): {now()}. Formal results are complete and audited:  {len(results)}/8 runs; 2 reused and 6 newly trained.', '',
+           '**Entry point**: status/report refresh  `.venv/bin/python -m scripts.column_tree_full_suite status`; resume after interruption  `.venv/bin/python -m scripts.column_tree_full_suite resume`; final verification  `.venv/bin/python -m scripts.report_column_tree_full --require-complete`. ', '',
+           '## Experimental Design and Corrections', '',
+           'Compare col_adaptive and quadtree_question at 10%/25%/50%/75% retention, all pre-merger: encoder H → PH → original merger → Qwen. Column does not use the question to generate P. Tree uses frozen Qwen input embeddings for the current question\'s first 64 tokens. Despite the quadtree identifier, it recursively bisects rectangles rather than forming a standard four-child quadtree.', '',
+           '**The historical full 25% model is global_topk, not the question-conditioned tree.** In addition to four requested Column runs and Tree75%, add the missing Tree25% for a complete 2×4 comparison. Existing Tree10%/50% weights and answers remain unchanged. Historical global_topk is a separate reference, never relabeled Tree25%.', '',
+           'This separately requested experiment does not reuse original admission criteria, retroactively pass confirmation, or select architecture/seed/checkpoint on formal scores. The inspected benchmark makes it a fixed extension, not a new blind test.', '',
+           '## Data, Training, and Evaluation Configuration', '',
+           '- Original 20,000 QA / 16,731 images; retain files, sample order, and epoch-shuffle rules without resampling or task balancing.',
+           '- Fixed validation: 56 QA / 56 images; historical audit: 14 QA / 7 images. Only 2 audit images belong to 20k training; preserve that audit set and separately summarize full-training KL over every batch/epoch.',
+           '- Formal evaluation reuses exactly 23,565 QA: DocVQA/InfoVQA from their original validation partitions plus all original-test tasks, excluding unused validation tasks. Training/development/formal document IDs are disjoint.',
+           '- Official MonkeyOCRv2-B-Und encoder, original merger, and Qwen3-1.7B are frozen; train only P. Every run initializes fresh with seed 20261105, without a small-run warm start.',
+           '- Four epochs/run, 625 updates/epoch, 2,500 total; AdamW LR=3e-4, wd=0, batch=32, clip=1; 250-step warmup, cosine to 10% peak LR; 8 NPUs, 4-question accumulation/rank, no padding.',
+           '- KL-only, T=1, teacher||student; teacher-greedy answers are shared prefixes. Training-teacher/small-validation cap=64, formal greedy cap=256. No row-entropy/column-mass regularization; not a decoder-free loss.',
+           '- Commit latest and optimizer state every 25 updates; save and evaluate each epoch, with epoch 4 fixed as the final model. Formal per-question outputs retain initial/trained/mean/selection/cell_mean/cell_selection: 141,390 records per run, without averaging over training seeds or compression samples.',
+           '- CPU uses .venv and NPU .venv-und. Retain the verified immutable-cache I/O repair without changing generator/loss/inference/scorer computations. Formal evaluation uses 8 independent workers rather than the earlier 14, with identical questions and generation settings.', '',
+           'Formal scores are equally weighted eight-task native macros (%). DeepForm/KLC field exact and retained DT-VQA scoring are not official document-F1/unified rankings. One full-training seed; image bootstrap does not measure seed variance.', '',
+           '[Immutable experiment registration, configuration hashes, and data audit](../artifacts/compression_lab_v2/column_tree_full_20261108/registration.json) · [Live machine-readable status](../artifacts/compression_lab_v2/column_tree_full_20261108/state.json) · [Per-run result audits](../artifacts/compression_lab_v2/column_tree_full_20261108/audits/). ', '',
+           '## Summary of Eight Training Runs and Formal Evaluations', '',
+           '|Retention fraction|Generator|Source / stage|Training updates|Formal records|teacher|initial|trained|Teacher-score retention|',
            '|---|---|---|---:|---:|---:|---:|---:|---:|']
     for record in sorted(reg['runs'], key=lambda x: (x['ratio'], x['kind'])):
         name = record['name']; info = progress[name]; result = results.get(name); mm = result['macro'] if result else {}
-        stage = '历史复用，已审计' if record['reuse'] else state.get('runs', {}).get(name, {}).get('stage', 'registered')
+        stage = 'Historical run reused and audited' if record['reuse'] else state.get('runs', {}).get(name, {}).get('stage', 'registered')
         if result and not record['reuse']:
-            stage = '正式完成，已审计'
+            stage = 'Formal evaluation completed and audited'
         retained = 100 * mm['trained'] / mm['teacher'] if mm else None
         doc.append(f'|{record["ratio"]:.0%}|{LABEL[record["kind"]]}|{stage}|{info["logged_updates"]}/2500|{info["benchmark_records"]}/141390|{fmt(mm.get("teacher"))}|{fmt(mm.get("initial"))}|{fmt(mm.get("trained"))}|{fmt(retained)}|')
     legacy = load(BASE / 'full/full_global_topk_pre-merger_r0.25/benchmark/summary.json')
-    doc += ['', f'历史25% global_topk单列参考：teacher {legacy["macro"]["teacher"]:.2f}，initial {legacy["macro"]["initial"]:.2f}，trained {legacy["macro"]["trained"]:.2f}。它不进入问题条件树的预算曲线。', '',
-            '“—”表示尚无完成且审计通过的正式结果，不能用56QA小验证或筛选分替代。', '', '## 各预算逐任务正式对比', '']
+    doc += ['', f'Historical 25% global_topk reference only: teacher  {legacy["macro"]["teacher"]:.2f}, initial {legacy["macro"]["initial"]:.2f}, trained {legacy["macro"]["trained"]:.2f}. It is excluded from the question-conditioned-tree budget curve.', '',
+            '“—” means no completed/audited formal result; do not substitute 56-QA validation or screening scores.', '', '## Formal Per-Task Comparison at Each Budget', '']
     tasks = sorted({r['task'] for r in expected.values()})
     for ratio in [.1, .25, .5, .75]:
         cc = results.get(f'full_col_adaptive_pre-merger_r{ratio:g}')
         tt = results.get(f'full_quadtree_question_pre-merger_r{ratio:g}')
-        doc += [f'### 保留{ratio:.0%}', '', '|任务|teacher|列initial|列trained|树initial|树trained|列trained−树trained|', '|---|---:|---:|---:|---:|---:|---:|']
-        for task in ['宏平均', *tasks]:
-            c = (cc['macro'] if task == '宏平均' else cc['tasks'][task]) if cc else {}
-            t = (tt['macro'] if task == '宏平均' else tt['tasks'][task]) if tt else {}
+        doc += [f'### Retained Components{ratio:.0%}', '', '|Task|teacher|Column initial|Column trained|Tree initial|Tree trained|Column trained − Tree trained|', '|---|---:|---:|---:|---:|---:|---:|']
+        for task in ['Macro average', *tasks]:
+            c = (cc['macro'] if task == 'Macro average' else cc['tasks'][task]) if cc else {}
+            t = (tt['macro'] if task == 'Macro average' else tt['tasks'][task]) if tt else {}
             teacher = (c or t).get('teacher')
             delta = c['trained'] - t['trained'] if c and t else None
             doc.append(f'|{task}|{fmt(teacher)}|{fmt(c.get("initial"))}|{fmt(c.get("trained"))}|{fmt(t.get("initial"))}|{fmt(t.get("trained"))}|{fmt(delta)}|')
         doc.append('')
-    doc += ['## 逐组配置、逐epoch loss与生成分', '']
+    doc += ['## Per-Run Configurations and Per-Epoch Loss/Generation Scores', '']
     for record in reg['runs']:
         name = record['name']; info = progress[name]; cfg = load(ROOT / record['config'])
-        doc += [f'### {LABEL[record["kind"]]} / 保留{record["ratio"]:.0%}', '',
-                f'[完整配置](../{record["config"]})；seed {cfg["seed"]}，pre-merger，固定epoch4。', '',
-                '|epoch|已记录更新|全训练batch平均KL|历史审计KL|验证KL|小验证生成宏平均|', '|---|---:|---:|---:|---:|---:|']
+        doc += [f'### {LABEL[record["kind"]]} / retain {record["ratio"]:.0%}', '',
+                f'[Full configuration](../{record["config"]}); seed {cfg["seed"]}, pre-merger, fixed epoch 4.', '',
+                '|epoch|Recorded updates|Full-training batch-mean KL|Historical audit KL|Development KL|Small-development-set generation macro|', '|---|---:|---:|---:|---:|---:|']
         for e in info['epochs']:
             doc.append(f'|{e["epoch"]}|{e["updates"]}/625|{fmt(e["train_batch_kl"],5)}|{fmt(e["audit_kl"],5)}|{fmt(e["validation_kl"],5)}|{fmt(e["validation_score"])}|')
-        doc += ['', 'epoch0为初始化，不包含训练更新；未满625更新的均值是当前部分epoch。不同集合的KL绝对数值不可直接比较；小验证cap64不等于正式cap256。', '']
+        doc += ['', 'Epoch 0 is initialization, without updates; means before 625 steps describe partial epochs. Absolute KL differs across sets; cap=64 small validation is not cap=256 formal evaluation.', '']
         curve = SUITE / 'plots' / f'{name}.pdf'
         if curve.exists():
-            doc += [f'[训练/审计/验证KL与验证生成分曲线](../{curve.relative_to(ROOT)})。', '']
+            doc += [f'[Training/audit/validation KL and validation generation curves](../{curve.relative_to(ROOT)}). ', '']
         out = ROOT / record['output']
         if name in results:
             mm = results[name]['macro']; pair = results[name]['paired_trained_vs_initial']; ci = pair['cluster_bootstrap_95ci_points']
-            doc += [f'正式训练增益 {pair["gain_points"]:+.2f} 点，图像聚类95%CI [{ci[0]:.2f}, {ci[1]:.2f}]；相对teacher {mm["trained"]-mm["teacher"]:+.2f} 点。', '',
-                    f'[逐题CSV](../{record["output"]}/benchmark/answers.csv) · [图像/gold/teacher/initial/trained作答对比](../{record["output"]}/benchmark/review.html) · [机器结果](../{record["output"]}/benchmark/summary.json) · [epoch4权重](../{record["output"]}/epoch4.pt)。', '']
-    doc += ['## 恢复与完成规则', '',
-            'CPU控制器独立于交互会话，最多同时保持2个NPU阶段作业，按固定顺序训练并自动进入全量评测，随后进行逐题覆盖、gold、teacher、评分复算、配置/代码/权重哈希审计，生成CSV、作答HTML与曲线并更新本页。', '',
-            '每阶段最多3次基础设施恢复，保留原seed、8NPU分片与checkpoint，不放宽科学协议；超过次数保留失败状态与日志，等待诊断。完成标志、逐题覆盖与审计全部通过后才写正式分数。原10%/50%树与25%global_topk的状态文件、权重、正式作答均不覆盖。', '',
-            '任务未完成时可用resume重新启动控制器，已有作业会保留。控制器及所有阶段日志位于artifacts/compression_lab_v2/column_tree_full_20261108/。']
+            doc += [f'Formal training gain {pair["gain_points"]:+.2f}  points; image-cluster 95% CI [{ci[0]:.2f}, {ci[1]:.2f}]; relative to teacher  {mm["trained"]-mm["teacher"]:+.2f}  points.', '',
+                    f'[Per-question CSV](../{record["output"]}/benchmark/answers.csv) · [Image/gold/teacher/initial/trained answers](../{record["output"]}/benchmark/review.html) · [Machine-readable results](../{record["output"]}/benchmark/summary.json) · [Epoch-4 weights](../{record["output"]}/epoch4.pt). ', '']
+    doc += ['## Recovery and Completion Criteria', '',
+            'The CPU controller runs independently of the interactive session, with at most 2 NPU stage jobs at once. Fixed-order training proceeds to full evaluation, followed by coverage/gold/teacher/score/config/code/weight audits, CSV/HTML/curve generation, and this report.', '',
+            'Each stage permits at most 3 infrastructure recoveries with original seed, 8-NPU sharding, and checkpoints; scientific criteria are not relaxed. Beyond that, preserve failure status/logs for diagnosis. Formal scores require completion markers, question coverage, and audits to pass. Existing 10%/50% Tree and 25% global_topk states, weights, and answers are not overwritten.', '',
+            'Use resume to restart an incomplete controller while retaining existing jobs. Controller/stage logs: artifacts/compression_lab_v2/column_tree_full_20261108/.']
     tmp = REPORT.with_name(REPORT.name + f'.{os.getpid()}.tmp')
     tmp.write_text('\n'.join(doc) + '\n')
     tmp.replace(REPORT)

@@ -13,7 +13,7 @@ OUT=ROOT/'artifacts/decoder_dependent_loss'
 NAMES=['prediction_kl','entropy','total','first_token_kl','entropy_normalized']
 
 
-def fmt(v):return '不可估计（常量）' if v is None else f'{v:.4f}'
+def fmt(v):return 'Not estimable (constant)' if v is None else f'{v:.4f}'
 def ci(v):return f'[{v[0]:.4f}, {v[1]:.4f}]'
 
 
@@ -172,68 +172,68 @@ def main():
     (out/'analysis.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2,allow_nan=False)+'\n')
     plot(out,rr,summary)
     sections=[]
-    sections.append('# Decoder-dependent 压缩 loss：实际结果\n')
-    sections.append(f"本次完成 **{len(complete):,} 张不同图像、{len(rr):,} 次独立随机压缩、{len(rows)-len(rr):,} 次均值池化对照**。"+('全部预定样本已完成。' if audit['complete'] else '**这是部分样本结果，尚未完成预定全规模。**'))
-    sections.append('下游作答及得分复用同一个官方基线、同一组原始特征和逐次压缩矩阵的既有独立生成；本轮新增运行 decoder 前向，计算完整词表预测 KL。没有把旧的 encoder-only loss 改名为新 loss。每个种子的得分独立参加统计。')
-    sections.append('分数下降定义为 Δ = teacher_score − student_score；正相关表示 loss 越高、压缩后损失越大。主分析仅含随机压缩；均值池化另列。所有分数均在 [0,1] 内。')
-    sections.append('## 三个主要指标\n')
-    sections.append('| Loss | pooled Spearman ρ（图像 bootstrap 95% CI） | 同题内秩相关 | 固定题目×比例×类型的秩相关（95% CI） | 两种子非平局排序正确率（95% CI） |\n|---|---|---|---|---|')
+    sections.append('# Decoder-Dependent Compression Loss: Measured Results\n')
+    sections.append(f"Completed **{len(complete):,}  distinct images, {len(rr):,}  independent random compressions, {len(rows)-len(rr):,}  mean-pooling controls**."+('All planned samples completed.' if audit['complete'] else '**These are partial-sample results; the planned full scale is not complete.**'))
+    sections.append('Downstream answers/scores reuse independent generations from the same official baseline, original features, and per-trial matrices. New decoder forwards compute full-vocabulary prediction KL; earlier encoder-only losses are not relabeled. Every seed’s score enters statistics independently.')
+    sections.append('Score drop Δ=teacher_score−student_score. Positive correlation means higher loss predicts greater degradation. Primary analysis includes random compressions only; mean pooling is separate. Scores lie in [0,1].')
+    sections.append('## Three Primary Metrics\n')
+    sections.append('| Loss | Pooled Spearman ρ (image-bootstrap 95% CI) | Within-question rank correlation | Fixed question×retention×family rank correlation (95% CI) | Two-seed non-tied ordering accuracy (95% CI) |\n|---|---|---|---|---|')
     for name in NAMES[:3]:
         m=metrics[name];pair=m['paired_seed_ordering']
         sections.append(f"| {name} | {fmt(m['pooled_spearman'])} {ci(m['pooled_image_bootstrap_ci95'])} | {fmt(m['within_question'])} | {fmt(m['within_question_ratio_family'])} {ci(m['within_question_ratio_family_ci95'])} | {100*pair['accuracy']:.2f}% {ci([100*v for v in pair['image_bootstrap_ci95']])} |")
-    sections.append('95% CI 使用 1,000 次按图像重采样；pooled Spearman 每次重新排名。同题内相关是组内秩中心化后再计算相关；固定题目×比例×类型每组只有两个种子，因此必须结合排序正确率和平局数解释。它不是另一个 pooled Spearman。')
-    sections.append('两种子组内秩相关受大量下游平局限制。固定现有 loss/得分的平局位置，即使所有非平局种子对都排对，其最大值也只有 `非平局交集数 / sqrt(loss 非平局数 × 得分非平局数)`；因此不能机械地用 0.7 要求这个条件指标。相关性和非平局排序正确率应一起看。')
+    sections.append('95% CIs use 1,000 image-cluster resamples, reranking pooled Spearman each time. Within-question correlation centers ranks within groups. Fixed question×retention×family groups have only two seeds, so interpret with ordering accuracy and tie counts; this is not another pooled Spearman.')
+    sections.append('Many downstream ties limit within-two-seed rank correlation. Holding observed loss/score tie locations fixed, even perfectly ordering every non-tied pair yields a maximum of only  `non-tied intersection count / sqrt(loss loss-non-tied pair count × score-non-tied pair count)`; do not mechanically require .7 for this conditional metric. Interpret correlation together with non-tied ordering accuracy.')
     add=summary['adding_entropy_paired_bootstrap']
-    sections.append(f"加入熵的配对图像 bootstrap：总 loss 相对 KL 的 pooled ρ 变化={add['pooled_rho_total_minus_kl']:.4f}，95% CI {ci(add['pooled_rho_delta_ci95'])}；共同非平局种子对上的排序正确率变化={100*add['seed_order_total_minus_kl']:.2f} 个百分点，95% CI {ci([100*v for v in add['seed_order_delta_ci95']])}。这直接比较相同图像/相同矩阵的两种指标，不能把很小的点估计差异自动解释为熵有效。")
-    sections.append('| Loss | teacher 得分 > 0 的 pooled ρ | teacher 得分 = 1 的 pooled ρ | 控制题目与配置后的全局秩残差相关 | 同比例同类型种子非平局数 | 下游平局数 | loss 平局但下游不平局数 |\n|---|---|---|---|---|---|---|')
+    sections.append(f"Paired image bootstrap for entropy addition: pooled-ρ change, total versus KL={add['pooled_rho_total_minus_kl']:.4f}, 95% CI {ci(add['pooled_rho_delta_ci95'])}; accuracy change on shared non-tied seed pairs={100*add['seed_order_total_minus_kl']:.2f}  percentage points, 95% CI  {ci([100*v for v in add['seed_order_delta_ci95']])}. This directly compares two metrics on identical image/matrix pairs. A small point-estimate difference does not establish an entropy benefit.")
+    sections.append('| Loss | Pooled ρ on teacher-score>0 subset | Pooled ρ on teacher-score=1 subset | Global rank-residual correlation controlling question/configuration | Non-tied seeds at the same retention and family | Downstream ties | Loss ties with non-tied downstream scores |\n|---|---|---|---|---|---|---|')
     for name in NAMES[:3]:
         m=metrics[name];pair=m['paired_seed_ordering']
         sections.append(f"| {name} | {fmt(m['teacher_positive_spearman'])} | {fmt(m['teacher_perfect_spearman'])} | {fmt(m['partial_global_rank_question_config'])} | {pair['concordant']+pair['discordant']:,} | {pair['outcome_ties']:,} | {pair['loss_ties_outcome_nontie']:,} |")
-    sections.append('## 各任务结果\n')
-    sections.append('| 数据集 | 图像 | Teacher 平均分 | Student 平均分 | 平均下降 | KL ρ | 熵 ρ | 总 loss ρ |\n|---|---|---|---|---|---|---|---|')
+    sections.append('## Per-Task Results\n')
+    sections.append('| Dataset | Images | Teacher mean score | Student mean score | Mean drop | KL ρ | Entropy ρ | Total loss ρ |\n|---|---|---|---|---|---|---|---|')
     for t,d in per_task.items():
         sections.append(f"| {t} | {d['images']} | {100*d['teacher_score']:.2f} | {100*d['student_score']:.2f} | {100*d['score_drop']:.2f} | "+' | '.join(fmt(metrics[n]['per_task'][t]['pooled_spearman']) for n in NAMES[:3])+' |')
-    sections.append('表中的平均任务分数只描述整体难度；相关性和排序分析始终使用每一次随机压缩的原始得分，没有先对种子或作答求均值。各任务沿用既有 native_score 指标；跨任务 pooled 相关应同时结合逐任务结果。')
-    sections.append('| 数据集 | KL 种子排序正确率 / 非平局对数 | 熵种子排序正确率 / 非平局对数 | 总 loss 种子排序正确率 / 非平局对数 |\n|---|---|---|---|')
+    sections.append('Mean task scores describe difficulty only. Correlation/ordering always use individual compression scores, never seed/answer averages. Retain native_score and interpret pooled cross-task correlation alongside per-task findings.')
+    sections.append('| Dataset | KL seed-ordering accuracy / non-tied pair count | Entropy seed-ordering accuracy / non-tied pairs | Total-loss seed-ordering accuracy / non-tied pairs |\n|---|---|---|---|')
     for t in per_task:
         values=[]
         for n in NAMES[:3]:
             d=metrics[n]['per_task'][t]
-            values.append(f"{100*d['seed_order_accuracy']:.2f}% / {d['nontie_pairs']:,}" if d['nontie_pairs'] else '无非平局对')
+            values.append(f"{100*d['seed_order_accuracy']:.2f}% / {d['nontie_pairs']:,}" if d['nontie_pairs'] else 'No non-tied pairs')
         sections.append('| '+t+' | '+' | '.join(values)+' |')
-    sections.append('逐任务种子排序表为点估计；每对均固定题目、比例与类型，只比较随机种子，不把它与跨题目的 pooled 相关混用。')
-    sections.append('## 固定比例和矩阵类型\n')
-    sections.append('| 保留率/类型 | KL pooled ρ | 熵 pooled ρ | 总 loss pooled ρ |\n|---|---|---|---|')
+    sections.append('Per-task seed-ordering tables are point estimates. Each pair fixes question/retention/family and varies only seed; do not mix with cross-question pooled correlation.')
+    sections.append('## Fixed Retention Fractions and Matrix Families\n')
+    sections.append('| Retention / family | KL pooled ρ | Entropy pooled ρ | Total-loss pooled ρ |\n|---|---|---|---|')
     for key in metrics['total']['per_ratio_family']:
         sections.append('| '+key+' | '+' | '.join(fmt(metrics[n]['per_ratio_family'][key]['pooled_spearman']) for n in NAMES[:3])+' |')
-    sections.append('各比例/类型的 pooled 值仍跨题目；更严格的同题控制和种子排序见主表。')
-    sections.append('## 对照和诊断\n')
+    sections.append('Pooled values per retention/family still cross questions; stricter same-question/seed checks appear in the primary table.')
+    sections.append('## Controls and Diagnostics\n')
     for name in NAMES:
         m=metrics[name]
-        sections.append(f"- `{name}` 范围/中位数：{m['loss_quantiles'][0]:.6g} / {m['loss_quantiles'][3]:.6g} / {m['loss_quantiles'][-1]:.6g}（min/median/max）；均值池化 25% / 50% 的 ρ：{fmt(m['controls']['0.25'])} / {fmt(m['controls']['0.5'])}。")
-        if name in NAMES[:3]:sections.append(f"  固定配置秩相关在现有平局分布下的上限：{fmt(m['within_config_tie_ceiling'])}。")
-    sections.append(f"- Student 得分为零的随机试验占 {100*summary['student_zero_fraction']:.2f}%；teacher 得分 > 0 的图像 {summary['teacher_positive_images']:,} 张，teacher 满分图像 {summary['teacher_perfect_images']:,} 张。")
-    sections.append(f"- 共享 teacher 前缀的第一个位置 argmax 与历史 teacher 首 token 一致：{audit['teacher_forced_first_token_matches']:,}/{len(complete):,}。完整前缀平均 greedy 一致率：{100*audit['teacher_forced_agreement_mean']:.4f}%。不同设备/并行归约与逐 token KV-cache 可引入 BF16 数值差异，这些核对值保留在 audit.json。")
+        sections.append(f"- `{name}` range / median: {m['loss_quantiles'][0]:.6g} / {m['loss_quantiles'][3]:.6g} / {m['loss_quantiles'][-1]:.6g}(min/median/max); mean-pooling 25% / 50% ρ: {fmt(m['controls']['0.25'])} / {fmt(m['controls']['0.5'])}. ")
+        if name in NAMES[:3]:sections.append(f"  Conditional rank-correlation ceiling under observed ties: {fmt(m['within_config_tie_ceiling'])}. ")
+    sections.append(f"- Fraction of random trials with zero student score:  {100*summary['student_zero_fraction']:.2f}%; images with teacher score >0:  {summary['teacher_positive_images']:,}  images; teacher-perfect images  {summary['teacher_perfect_images']:,}  images.")
+    sections.append(f"- First shared-teacher-prefix argmax matches the historical teacher’s first token: {audit['teacher_forced_first_token_matches']:,}/{len(complete):,}. Mean greedy agreement over complete prefixes: {100*audit['teacher_forced_agreement_mean']:.4f}%. Hardware/parallel reductions and stepwise KV generation can introduce BF16 differences; checks remain in audit.json.")
     rg=audit['regenerated_prefix_checks']
-    sections.append(f"- 跨 CPU/NPU 的自由生成前缀复核：{rg['images']} 张图，teacher 一致 {rg['teacher_match']}，student 一致 {rg['student_match']}，两者均一致 {rg['both_match']}。前缀最长 16 token；不将首个先导样本一致推广为所有样本一致。得分仍为原 NPU 自由生成，loss 为 CPU BF16 共同前缀前向；存在跨设备数值与生成分叉限制。")
+    sections.append(f"- CPU/NPU free-generation-prefix cross-check: {rg['images']}  images; teacher agreement  {rg['teacher_match']}, student agreement  {rg['student_match']}, both identical {rg['both_match']}. Prefix cap=16; one matching pilot does not establish equivalence everywhere. Scores remain original NPU free generations, while loss uses CPU BF16 shared-prefix forwards, with cross-device numerical/trajectory limitations.")
     cg=audit['completed_cpu_generation_checks']
-    sections.append(f"- 利用已保存的重生记录，在 teacher 和 student 均于 16 token 内生成 EOS 的 **{cg['images']} 张图**上计算完整 CPU 作答分数：teacher 得分一致 {cg['teacher_score_equal']}，student 得分一致 {cg['student_score_equal']}，得分下降一致 {cg['score_drop_equal']}；CPU/NPU 得分下降的 Spearman={fmt(cg['cpu_vs_npu_score_drop_spearman'])}。这是按完成 EOS 筛选的短作答诊断子集，只检查 12.5% local seed 0，不代表所有 93,626 次干预。完整记录见 `cpu_generation_checks.json`。")
-    sections.append('| 完整 EOS 子集上的 loss | 对 CPU 得分下降的 ρ | 对同一子集 NPU 得分下降的 ρ |\n|---|---|---|')
+    sections.append(f"- Using saved regeneration records, among cases where teacher and student both generate EOS within 16 tokens: **{cg['images']} ** images receive full CPU scoring: teacher agreement  {cg['teacher_score_equal']}, student-score agreement  {cg['student_score_equal']}, matching score drops  {cg['score_drop_equal']}; Spearman of CPU/NPU score drops={fmt(cg['cpu_vs_npu_score_drop_spearman'])}. This EOS-completed short-answer diagnostic subset checks only 12.5% local seed 0, not all 93,626 interventions. Complete records:  `cpu_generation_checks.json`. ")
+    sections.append('| Loss on EOS-completed subset | ρ with CPU score drop | ρ with NPU score drop on the same subset |\n|---|---|---|')
     for n in NAMES[:3]:sections.append(f"| {n} | {fmt(cg['loss_vs_cpu_drop_spearman'][n])} | {fmt(cg['loss_vs_npu_drop_spearman'][n])} |")
-    sections.append('首 token KL 是没有答案前缀的诊断；归一化熵 H/log N 是长度尺度诊断，均不是替代论文目标的主结果。没有根据评测分数调节 λ 或选择最好的变体。')
-    sections.append('| 跨设备一致性诊断子集 | 图像 | KL ρ | 熵 ρ | 总 loss ρ |\n|---|---|---|---|---|')
+    sections.append('First-token KL has no answer prefix; H/log N diagnoses length scaling. Neither replaces the paper objective. Evaluation does not tune λ or choose the best variant.')
+    sections.append('| Cross-device consistency diagnostic subset | Images | KL ρ | Entropy ρ | Total loss ρ |\n|---|---|---|---|---|')
     for label in ['teacher_first_token_match','teacher_full_forced_argmax_match']:
         sections.append('| '+label+' | '+str(metrics['total'][label]['images'])+' | '+' | '.join(fmt(metrics[n][label]['pooled_spearman']) for n in NAMES[:3])+' |')
-    sections.append('## 独立作答实例\n')
+    sections.append('## Independent Answer Examples\n')
     for typ in ['concordant','counterexamples']:
-        sections.append('### '+('KL 与下游排序一致' if typ=='concordant' else 'KL 排序的反例')+'\n')
+        sections.append('### '+('KL agrees with downstream ordering' if typ=='concordant' else 'Counterexample to KL ordering')+'\n')
         for pair in examples['prediction_kl'][typ][:2]:
             left,right=pair['low_loss'],pair['high_loss']
-            sections.append(f"- `{left['sample_id']}`，{left['task']}，保留率 {left['ratio']}，{left['family']}。问题：{left['question']}；gold：{json.dumps(left['answers'],ensure_ascii=False)}；teacher：{left['teacher_prediction']!r}，分数 {left['teacher_score']:.4f}。")
-            for label,r in [('低 KL',left),('高 KL',right)]:
-                sections.append(f"  - {label}，seed index {r['replicate']}：KL={r['new_loss']['prediction_kl']:.6f}，熵={r['new_loss']['entropy']:.6f}，总={r['new_loss']['total']:.6f}；student={r['student_prediction']!r}，分数={r['student_score']:.4f}，下降={r['score_drop']:.4f}。")
-    sections.append('## 结果文件与审计\n')
-    sections.append('- `trials.csv`：所有逐次作答、gold、两项 loss、总 loss、分数与分数下降。\n- `losses/<document_id>.json`：逐响应位置 KL、teacher token IDs、矩阵/特征摘要。\n- `analysis.json`：完整相关性、逐任务与逐配置结果、置信区间。\n- `examples.json`：三项 loss 的一致排序实例及反例。\n- `audit.json`：完整性、分数重算、来源摘要及接口核对。\n- `correlation_scatter.pdf/png`：逐次压缩散点图。')
+            sections.append(f"- `{left['sample_id']}`, {left['task']}, retention  {left['ratio']}, {left['family']}. Question: {left['question']}; gold: {json.dumps(left['answers'],ensure_ascii=False)}; teacher: {left['teacher_prediction']!r}, score  {left['teacher_score']:.4f}. ")
+            for label,r in [('Low KL',left),('High KL',right)]:
+                sections.append(f"  - {label}, seed index {r['replicate']}: KL={r['new_loss']['prediction_kl']:.6f}, entropy={r['new_loss']['entropy']:.6f}, total={r['new_loss']['total']:.6f}; student={r['student_prediction']!r}, score={r['student_score']:.4f}, drop={r['score_drop']:.4f}. ")
+    sections.append('## Result Files and Audits\n')
+    sections.append('- `trials.csv`: every answer, gold, both component losses, total, score, and drop.\n- `losses/<document_id>.json`: per-response-position KL, teacher token IDs, and matrix/feature summaries.\n- `analysis.json`: full correlations, task/configuration breakdowns, and CIs.\n- `examples.json`: concordant-order examples and counterexamples for three losses.\n- `audit.json`: coverage, score recomputation, provenance, and interface checks.\n- `correlation_scatter.pdf/png`: per-compression scatter plots.')
     markdown='\n\n'.join(sections)+'\n'
     markdown=re.sub(r'(\|)\n\n(?=\|)',r'\1\n',markdown)
     (out/'RESULTS.md').write_text(markdown)
